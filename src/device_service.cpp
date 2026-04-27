@@ -6,125 +6,123 @@
 #include <Arduino.h>
 
 namespace {
-    constexpr uint32_t kRebootDelayMs = 500;
-    constexpr uint32_t kRestartFlushDelayMs = 50;
+constexpr uint32_t kRebootDelayMs = 500;
+constexpr uint32_t kRestartFlushDelayMs = 50;
 
-    void fillIdentityJson(JsonDocument& doc) {
-      doc["device_id"] = DeviceIdentity::getProvisionedId();
-      doc["hardware_id"] = DeviceIdentity::getHardwareId();
-      doc["effective_id"] = DeviceIdentity::getEffectiveId();
-      doc["hostname"] = DeviceIdentity::getHostname();
-      doc["effective_hostname"] = DeviceIdentity::getEffectiveHostname();
-      doc["provisioned"] = DeviceIdentity::hasProvisionedId();
-    }
+void fillIdentityJson(JsonDocument &doc) {
+  doc["device_id"] = DeviceIdentity::getProvisionedId();
+  doc["hardware_id"] = DeviceIdentity::getHardwareId();
+  doc["effective_id"] = DeviceIdentity::getEffectiveId();
+  doc["hostname"] = DeviceIdentity::getHostname();
+  doc["effective_hostname"] = DeviceIdentity::getEffectiveHostname();
+  doc["provisioned"] = DeviceIdentity::hasProvisionedId();
+}
 
-    DeviceService::Result ok(uint16_t statusCode = 200) {
-      return {true, statusCode, nullptr};
-    }
+DeviceService::Result ok(uint16_t statusCode = 200) {
+  return {true, statusCode, nullptr};
+}
 
-    DeviceService::Result fail(uint16_t statusCode, const char* error) {
-      return {false, statusCode, error};
-    }
+DeviceService::Result fail(uint16_t statusCode, const char *error) {
+  return {false, statusCode, error};
+}
 
-    void fillStatusJson(JsonDocument& doc, const DeviceState& state) {
-      doc["status"] = "ok";
-      doc["ip"] = state.ip;
-      doc["uptime_sec"] = state.uptimeSec;
-      doc["heap_free"] = state.freeHeapBytes;
-      doc["wifi_rssi"] = state.wifiRssiDbm;
-      doc["wifi_connected"] = state.wifiConnected;
-      doc["wifi_status"] = state.wifiStatus;
-    }
+void fillStatusJson(JsonDocument &doc, const DeviceState &state) {
+  doc["status"] = "ok";
+  doc["ip"] = state.ip;
+  doc["uptime_sec"] = state.uptimeSec;
+  doc["heap_free"] = state.freeHeapBytes;
+  doc["wifi_rssi"] = state.wifiRssiDbm;
+  doc["wifi_connected"] = state.wifiConnected;
+  doc["wifi_status"] = state.wifiStatus;
+}
 
-    void fillSensorJson(JsonObject sensors, const SensorManager& sensorManager) {
-      const SensorSnapshot snapshot = sensorManager.snapshot();
-      sensors["bme280_available"] = snapshot.bme280Available;
-      sensors["bme280_read_ok"]   = snapshot.bme280ReadOk;
+void fillSensorJson(JsonObject sensors, const SensorManager &sensorManager) {
+  const SensorSnapshot snapshot = sensorManager.snapshot();
+  sensors["bme280_available"] = snapshot.bme280Available;
+  sensors["bme280_read_ok"] = snapshot.bme280ReadOk;
 
-      JsonObject fields = sensors["fields"].to<JsonObject>();
+  JsonObject fields = sensors["fields"].to<JsonObject>();
 
-      sensorManager.walkFields([&fields](const char* key, float value, const char* unit) {
+  sensorManager.walkFields(
+      [&fields](const char *key, float value, const char *unit) {
         JsonObject entry = fields[key].to<JsonObject>();
         entry["value"] = value;
-        entry["unit"]  = unit;
+        entry["unit"] = unit;
       });
+}
+
+void appendSensorText(String &out, const SensorManager &sensorManager) {
+  out.reserve(out.length() + 300);
+
+  bool hasFields = false;
+  char lineBuffer[80];
+
+  sensorManager.walkFields([&](const char *key, float value, const char *unit) {
+    if (!hasFields) {
+      out += "\n--- Sensors ---\n";
+      hasFields = true;
     }
 
-    void appendSensorText(String& out, const SensorManager& sensorManager) {
-      out.reserve(out.length() + 300);
+    snprintf(lineBuffer, sizeof(lineBuffer), "%-15s: %.2f %s\n", key, value,
+             unit);
+    out += lineBuffer;
+  });
 
-      bool hasFields = false;
-      char lineBuffer[80];
+  if (!hasFields) {
+    out += "\nSensors: (no data available)\n";
+  }
+}
 
-      sensorManager.walkFields([&](const char* key, float value, const char* unit) {
-        if (!hasFields) {
-          out += "\n--- Sensors ---\n";
-          hasFields = true;
-        }
+void fillProvisioningResponse(JsonDocument &doc) {
+  Serial.print("[provision] device_id set to: ");
+  Serial.println(DeviceIdentity::getProvisionedId());
 
-        snprintf(lineBuffer, sizeof(lineBuffer), "%-15s: %.2f %s\n", key, value, unit);
-        out += lineBuffer;
-      });
+  Serial.print("[provision] hostname set to: ");
+  Serial.println(DeviceIdentity::getHostname());
 
-      if (!hasFields) {
-        out += "\nSensors: (no data available)\n";
-      }
-    }
+  Serial.println("[provision] reboot required for WiFi hostname/mDNS change");
 
-    void fillProvisioningResponse(JsonDocument& doc) {
-        Serial.print("[provision] device_id set to: ");
-        Serial.println(DeviceIdentity::getProvisionedId());
+  fillIdentityJson(doc);
+  doc["status"] = "ok";
+  doc["note"] = "reboot_required_for_hostname_change";
+}
 
-        Serial.print("[provision] hostname set to: ");
-        Serial.println(DeviceIdentity::getHostname());
+void fillHostnameResponse(JsonDocument &doc) {
+  Serial.print("[hostname] hostname set to: ");
+  Serial.println(DeviceIdentity::getHostname());
 
-        Serial.println("[provision] reboot required for WiFi hostname/mDNS change");
+  Serial.println("[hostname] reboot required for WiFi hostname/mDNS change");
 
-        fillIdentityJson(doc);
-        doc["status"] = "ok";
-        doc["note"] = "reboot_required_for_hostname_change";
-    }
+  doc["hostname"] = DeviceIdentity::getHostname();
+  doc["status"] = "ok";
+  doc["note"] = "reboot_required_for_hostname_change";
+}
 
-    void fillHostnameResponse(JsonDocument& doc) {
-      Serial.print("[hostname] hostname set to: ");
-      Serial.println(DeviceIdentity::getHostname());
+} // namespace
 
-      Serial.println("[hostname] reboot required for WiFi hostname/mDNS change");
-
-      doc["hostname"] = DeviceIdentity::getHostname();
-      doc["status"] = "ok";
-      doc["note"] = "reboot_required_for_hostname_change";
-    }
-
-}  // namespace
-
-DeviceService::DeviceService(SensorManager& sensorManager)
-  : sensorManager_(sensorManager) {}
+DeviceService::DeviceService(SensorManager &sensorManager)
+    : sensorManager_(sensorManager) {}
 
 String DeviceService::getTextStatus() {
   const DeviceState state = collectDeviceState();
 
   char header[512];
 
-  snprintf(
-    header,
-    sizeof(header),
-    "ESP32 is alive\n"
-    "Hardware ID:    %s\n"
-    "Provisioned ID: %s\n"
-    "Effective ID:   %s\n"
-    "Hostname:       %s\n"
-    "IP:             %s\n"
-    "Uptime:         %lu sec\n\n",
-    DeviceIdentity::getHardwareId().c_str(),
-    DeviceIdentity::hasProvisionedId()
-      ? DeviceIdentity::getProvisionedId().c_str()
-      : "(not set)",
-    DeviceIdentity::getEffectiveId().c_str(),
-    DeviceIdentity::getEffectiveHostname().c_str(),
-    state.wifiConnected ? state.ip.c_str() : "n/a",
-    state.uptimeSec
-  );
+  snprintf(header, sizeof(header),
+           "ESP32 is alive\n"
+           "Hardware ID:    %s\n"
+           "Provisioned ID: %s\n"
+           "Effective ID:   %s\n"
+           "Hostname:       %s\n"
+           "IP:             %s\n"
+           "Uptime:         %lu sec\n\n",
+           DeviceIdentity::getHardwareId().c_str(),
+           DeviceIdentity::hasProvisionedId()
+               ? DeviceIdentity::getProvisionedId().c_str()
+               : "(not set)",
+           DeviceIdentity::getEffectiveId().c_str(),
+           DeviceIdentity::getEffectiveHostname().c_str(),
+           state.wifiConnected ? state.ip.c_str() : "n/a", state.uptimeSec);
 
   String body;
   body.reserve(700);
@@ -135,9 +133,9 @@ String DeviceService::getTextStatus() {
   return body;
 }
 
-void DeviceService::getJSONStatus(JsonDocument& doc) {
+void DeviceService::getJSONStatus(JsonDocument &doc) {
   const DeviceState state = collectDeviceState();
-  
+
   fillIdentityJson(doc);
   fillStatusJson(doc, state);
   fillSensorJson(doc["sensors"].to<JsonObject>(), sensorManager_);
@@ -148,18 +146,16 @@ String DeviceService::getMetrics() {
   return formatPrometheusMetrics(state, sensorManager_);
 }
 
-void DeviceService::getDeviceInfo(JsonDocument& doc) {
+void DeviceService::getDeviceInfo(JsonDocument &doc) {
   const DeviceState state = collectDeviceState();
 
   fillIdentityJson(doc);
   doc["ip"] = state.wifiConnected ? state.ip : "n/a";
 }
 
-DeviceService::Result DeviceService::provisionDevice(
-  const String& newId,
-  const String& newHostname,
-  JsonDocument& response
-) {
+DeviceService::Result DeviceService::provisionDevice(const String &newId,
+                                                     const String &newHostname,
+                                                     JsonDocument &response) {
   if (newId.isEmpty()) {
     return fail(400, "missing_device_id");
   }
@@ -192,10 +188,8 @@ DeviceService::Result DeviceService::provisionDevice(
   return ok(200);
 }
 
-DeviceService::Result DeviceService::setHostname(
-  const String& newHostname,
-  JsonDocument& response
-) {
+DeviceService::Result DeviceService::setHostname(const String &newHostname,
+                                                 JsonDocument &response) {
   if (newHostname.isEmpty()) {
     return fail(400, "missing_hostname");
   }
@@ -212,7 +206,7 @@ DeviceService::Result DeviceService::setHostname(
   return ok(200);
 }
 
-DeviceService::Result DeviceService::requestReboot(JsonDocument& response) {
+DeviceService::Result DeviceService::requestReboot(JsonDocument &response) {
   if (rebootRequested_) {
     response["status"] = "ok";
     response["message"] = "reboot_already_scheduled";
@@ -243,4 +237,3 @@ void DeviceService::handlePendingReboot() {
   delay(kRestartFlushDelayMs);
   ESP.restart();
 }
-

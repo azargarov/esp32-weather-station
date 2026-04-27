@@ -1,10 +1,10 @@
 #pragma once
 
+#include "data_serialization.h"
+#include "sensor_data.h"
+#include <Adafruit_BME280.h>
 #include <Arduino.h>
 #include <Wire.h>
-#include <Adafruit_BME280.h>
-#include "sensor_data.h"
-#include "data_serialization.h"
 
 class Bme280Sensor : public SerializableSensor {
 public:

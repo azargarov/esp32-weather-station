@@ -1,14 +1,13 @@
 #pragma once
 
+#include "device_service.h"
+#include "sensors/sensor_manager.h"
 #include <Arduino.h>
 #include <WebServer.h>
-#include "sensors/sensor_manager.h"
-#include "device_service.h"
-
 
 class HttpServer {
 public:
-  HttpServer(SensorManager& sensorManager, uint16_t port = 80);
+  HttpServer(SensorManager &sensorManager, uint16_t port = 80);
   void begin();
   void handleClient();
 
@@ -17,9 +16,9 @@ private:
   uint32_t kRebootFinalDelayMs = 50;
 
   WebServer server_;
-  SensorManager& sensorManager_;
-  DeviceService  deviceService_;
-  
+  SensorManager &sensorManager_;
+  DeviceService deviceService_;
+
   void registerRoutes();
   void handleRoot();
   void handleHealthz();

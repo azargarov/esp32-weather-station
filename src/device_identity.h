@@ -5,27 +5,27 @@
 
 namespace DeviceIdentity {
 
-    void begin();
+void begin();
 
-    String getHardwareId();
-    String getProvisionedId();
-    String getEffectiveId();
+String getHardwareId();
+String getProvisionedId();
+String getEffectiveId();
 
-    String getHostname();
-    String getEffectiveHostname();
+String getHostname();
+String getEffectiveHostname();
 
-    bool hasProvisionedId();
-    bool hasHostname();
+bool hasProvisionedId();
+bool hasHostname();
 
-    bool setProvisionedId(const String& id);
-    bool setHostname(const String& hostname);
+bool setProvisionedId(const String &id);
+bool setHostname(const String &hostname);
 
-    bool clearProvisionedId();
-    bool clearHostname();
+bool clearProvisionedId();
+bool clearHostname();
 
-    bool isValidDeviceId(const String& id);
-    bool isValidHostname(const String& hostname);
+bool isValidDeviceId(const String &id);
+bool isValidHostname(const String &hostname);
 
-    //void fillDeviceStatusJson(JsonDocument& doc);
+// void fillDeviceStatusJson(JsonDocument& doc);
 
-}
+} // namespace DeviceIdentity

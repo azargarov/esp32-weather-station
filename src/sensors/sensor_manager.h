@@ -1,9 +1,9 @@
 #pragma once
 
-#include <Arduino.h>
-#include "sensor_data.h"
 #include "bme280_sensor.h"
 #include "data_serialization.h"
+#include "sensor_data.h"
+#include <Arduino.h>
 
 class SensorManager {
 public:

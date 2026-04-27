@@ -39,13 +39,9 @@ bool Bme280Sensor::read() {
   return true;
 }
 
-bool Bme280Sensor::available() const {
-  return available_;
-}
+bool Bme280Sensor::available() const { return available_; }
 
-bool Bme280Sensor::lastReadOk() const {
-  return lastReadOk_;
-}
+bool Bme280Sensor::lastReadOk() const { return lastReadOk_; }
 
 void Bme280Sensor::walkFields(FieldVisitor visitor) const {
   if (!available_ || !lastReadOk_) {

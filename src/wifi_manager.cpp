@@ -1,7 +1,7 @@
 #include "wifi_manager.h"
 #include "config.h"
-#include "device_state.h"
 #include "device_identity.h"
+#include "device_state.h"
 
 #include <ESPmDNS.h>
 
@@ -11,24 +11,23 @@ void WiFiManager::connect() {
   Serial.println(Config::WIFI_SSID);
 
   WiFi.mode(WIFI_STA);
-  
 
   String hostname = DeviceIdentity::getEffectiveHostname();
-  
+
   Serial.print("[wifi] applying hostname: ");
   Serial.println(hostname);
-  
+
   WiFi.setHostname(hostname.c_str());
 
   WiFi.begin(Config::WIFI_SSID, Config::WIFI_PASSWORD);
   applyStrongRadioSettings();
 
   uint32_t retries = 0;
-  while (WiFi.status() != WL_CONNECTED && retries < Config::WIFI_CONNECT_MAX_RETRIES) {
+  while (WiFi.status() != WL_CONNECTED &&
+         retries < Config::WIFI_CONNECT_MAX_RETRIES) {
     delay(Config::WIFI_CONNECT_RETRY_DELAY_MS);
     Serial.print(".");
     retries++;
-
   }
 
   Serial.println();
@@ -126,21 +125,15 @@ void WiFiManager::handleSerialInput() {
   }
 }
 
-bool WiFiManager::isConnected() const {
-  return WiFi.status() == WL_CONNECTED;
-}
+bool WiFiManager::isConnected() const { return WiFi.status() == WL_CONNECTED; }
 
 String WiFiManager::ip() const {
   return isConnected() ? WiFi.localIP().toString() : "";
 }
 
-int32_t WiFiManager::rssi() const {
-  return isConnected() ? WiFi.RSSI() : 0;
-}
+int32_t WiFiManager::rssi() const { return isConnected() ? WiFi.RSSI() : 0; }
 
-wl_status_t WiFiManager::status() const {
-  return WiFi.status();
-}
+wl_status_t WiFiManager::status() const { return WiFi.status(); }
 
 String WiFiManager::statusString() const {
   return wifiStatusToString(WiFi.status());
@@ -158,11 +151,11 @@ void WiFiManager::applyStrongRadioSettings() {
 
 void WiFiManager::startMdns() {
   String hostname = DeviceIdentity::getEffectiveHostname();
-  
-    Serial.print("[mdns] using hostname: ");
-    Serial.println(hostname);
-  
-    if (hostname.isEmpty()) {
+
+  Serial.print("[mdns] using hostname: ");
+  Serial.println(hostname);
+
+  if (hostname.isEmpty()) {
     Serial.println("[mdns] hostname is empty, skipping mDNS");
     return;
   }

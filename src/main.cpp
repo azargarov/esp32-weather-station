@@ -1,9 +1,9 @@
-#include <Arduino.h>
 #include "config.h"
-#include "wifi_manager.h"
+#include "device_identity.h"
 #include "http_server.h"
 #include "sensors/sensor_manager.h"
-#include "device_identity.h"
+#include "wifi_manager.h"
+#include <Arduino.h>
 
 WiFiManager wifiManager;
 SensorManager sensorManager;
