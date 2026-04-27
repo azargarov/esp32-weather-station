@@ -1,0 +1,188 @@
+#include "http_server.h"
+#include "metrics_formatter.h"
+#include <ArduinoJson.h>
+
+namespace {
+
+  void sendJson(WebServer& server, int statusCode, const JsonDocument& doc) {
+    String body;
+    serializeJson(doc, body);
+    server.send(statusCode, "application/json", body);
+  }
+
+  void sendJsonError(WebServer& server, int statusCode, const char* error) {
+    JsonDocument doc;
+    doc["error"] = error;
+    sendJson(server, statusCode, doc);
+  }
+
+  bool parseRequestBody(WebServer& server, JsonDocument& doc) {
+    if (!server.hasArg("plain")) {
+      return false;
+    }
+
+    DeserializationError err = deserializeJson(doc, server.arg("plain"));
+    return !err;
+  }
+
+}  // namespace
+
+HttpServer::HttpServer(SensorManager& sensorManager, uint16_t port)
+  : server_(port), sensorManager_(sensorManager), deviceService_(sensorManager) {}
+
+void HttpServer::begin() {
+  registerRoutes();
+  server_.begin();
+}
+
+void HttpServer::registerRoutes() {
+  server_.on("/", [this]() { handleRoot(); });
+  server_.on("/healthz", [this]() { handleHealthz(); });
+  server_.on("/json", [this]() { handleJson(); });
+  server_.on("/metrics", [this]() { handleMetrics(); });
+
+  server_.on("/api/device/info", [this]() { handleDeviceInfo(); });
+  server_.on("/api/device/provision", HTTP_POST, [this]() { handleProvision(); });
+  server_.on("/api/device/hostname", HTTP_POST, [this]() { handleSetHostname(); });
+  server_.on("/api/device/reboot", HTTP_POST, [this]() { handleReboot(); });
+}
+
+void HttpServer::handleRoot() {
+  String body = deviceService_.getTextStatus(); 
+  server_.send(200, "text/plain", body);
+}
+
+void HttpServer::handleJson() {
+  JsonDocument doc;
+
+  deviceService_.getJSONStatus(doc);
+
+  sendJson(server_, 200, doc);
+}
+
+void HttpServer::handleHealthz() {
+  server_.send(200, "text/plain", "OK\n");
+}
+
+void HttpServer::handleMetrics() {
+
+  String metrics = deviceService_.getMetrics();
+  server_.send(200, "text/plain; version=0.0.4", metrics);
+
+}
+
+void HttpServer::handleDeviceInfo() {
+  JsonDocument doc;
+  deviceService_.getDeviceInfo(doc);
+
+  sendJson(server_, 200, doc);
+}
+
+void HttpServer::handleProvision() {
+  JsonDocument request;
+
+  if (!server_.hasArg("plain")) {
+    sendJsonError(server_, 400, "missing_body");
+    return;
+  }
+
+  if (!parseRequestBody(server_, request)) {
+    sendJsonError(server_, 400, "invalid_json");
+    return;
+  }
+
+  const char* newIdRaw = request["device_id"];
+  const char* newHostnameRaw = request["hostname"];
+
+  const String newId = newIdRaw ? String(newIdRaw) : "";
+  const String newHostname = newHostnameRaw ? String(newHostnameRaw) : newId;
+
+  JsonDocument response;
+
+  DeviceService::Result result =
+    deviceService_.provisionDevice(newId, newHostname, response);
+
+  if (!result.ok) {
+    sendJsonError(server_, result.statusCode, result.error);
+    return;
+  }
+
+  sendJson(server_, result.statusCode, response);
+}
+
+void HttpServer::handleSetHostname() {
+  JsonDocument request;
+
+  if (!server_.hasArg("plain")) {
+    sendJsonError(server_, 400, "missing_body");
+    return;
+  }
+
+  if (!parseRequestBody(server_, request)) {
+    sendJsonError(server_, 400, "invalid_json");
+    return;
+  }
+
+  const char* newHostnameRaw = request["hostname"];
+  const String newHostname = newHostnameRaw ? String(newHostnameRaw) : "";
+
+  JsonDocument response;
+
+  DeviceService::Result result =
+    deviceService_.setHostname(newHostname, response);
+
+  if (!result.ok) {
+    sendJsonError(server_, result.statusCode, result.error);
+    return;
+  }
+
+  sendJson(server_, result.statusCode, response);
+}
+
+//void HttpServer::handleReboot() {
+//  JsonDocument response;
+//
+//  if (rebootRequested_) {
+//    response["status"] = "ok";
+//    response["message"] = "reboot_already_scheduled";
+//    sendJson(server_, 202, response);
+//    return;
+//  }
+//
+//  Serial.println("[http] reboot requested");
+//
+//  rebootRequested_ = true;
+//  rebootAtMs_ = millis() + kRebootDelayMs;
+//
+//  response["status"] = "ok";
+//  response["message"] = "reboot_scheduled";
+//  sendJson(server_, 202, response);
+//}
+
+void HttpServer::handleReboot() {
+  JsonDocument response;
+
+  DeviceService::Result result = deviceService_.requestReboot(response);
+
+  if (!result.ok) {
+    sendJsonError(server_, result.statusCode, result.error);
+    return;
+  }
+
+  sendJson(server_, result.statusCode, response);
+}
+
+//void HttpServer::handleClient() {
+//  server_.handleClient();
+//
+//  if (rebootRequested_ && static_cast<long>(millis() - rebootAtMs_) >= 0) {
+//    Serial.println("[http] rebooting now...");
+//    delay(kRebootFinalDelayMs);
+//    ESP.restart();
+//  }
+//}
+
+void HttpServer::handleClient() {
+  server_.handleClient();
+  deviceService_.handlePendingReboot();
+}

@@ -1,0 +1,5 @@
+.pio
+.venv
+.vscode
+bak
+include/secrets.h
