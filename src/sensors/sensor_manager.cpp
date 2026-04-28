@@ -1,7 +1,13 @@
 #include "sensor_manager.h"
 #include "../config.h"
 
+namespace {
+constexpr unsigned long METRIC_BUCKET_INTERVAL_MS = 60000;
+}
+
 void SensorManager::begin() {
+  lastMetricRotationMs_ = millis();
+
   if (Config::BME280_ENABLED) {
     probeBME280();
   } else {
@@ -10,28 +16,26 @@ void SensorManager::begin() {
 
   if (bme280Present_) {
     readSensors();
+    lastReadMs_ = millis();
   }
 }
 
 void SensorManager::update() {
   const unsigned long now = millis();
 
-  if (bme280Present_) {
-    if (now - lastReadMs_ >= Config::SENSOR_READ_INTERVAL_MS) {
-      lastReadMs_ = now;
-      readSensors();
-    }
-    return;
+  if (bme280Present_ && now - lastReadMs_ >= Config::SENSOR_READ_INTERVAL_MS) {
+    lastReadMs_ = now;
+    readSensors();
   }
 
-  // if (now - lastProbeMs_ >= Config::SENSOR_PROBE_INTERVAL_MS) {
-  //   lastProbeMs_ = now;
-  //   probeBME280();
-  //   if (bme280Present_) {
-  //     readSensors();
-  //     lastReadMs_ = now;
-  //   }
-  // }
+  if (bme280Present_ && now - lastMetricRotationMs_ >= METRIC_BUCKET_INTERVAL_MS) {
+    lastMetricRotationMs_ = now;
+    rotateMetricBuckets();
+  }
+
+  if (bme280Present_) {
+    return;
+  }
 }
 
 SensorSnapshot SensorManager::snapshot() const {
@@ -42,7 +46,25 @@ SensorSnapshot SensorManager::snapshot() const {
 }
 
 void SensorManager::walkFields(SerializableSensor::FieldVisitor visitor) const {
-  bme280_.walkFields(visitor);
+  const Bme280Metrics& metrics = bme280Previous_.hasValue()
+    ? bme280Previous_
+    : bme280Current_;
+
+  if (!metrics.hasValue()) {
+    return;
+  }
+
+  visitor("temperature_avg_60s", metrics.temperature.average(), "celsius");
+  visitor("temperature_stddev_60s", metrics.temperature.stddev(), "celsius");
+
+  visitor("humidity_avg_60s", metrics.humidity.average(), "percent");
+  visitor("humidity_stddev_60s", metrics.humidity.stddev(), "percent");
+
+  visitor("pressure_avg_60s", metrics.pressure.average(), "hpa");
+  visitor("pressure_stddev_60s", metrics.pressure.stddev(), "hpa");
+
+  visitor("bme280_samples_60s", static_cast<float>(metrics.sampleCount()), "count");
+  visitor("bme280_read_errors_total", static_cast<float>(bme280ReadErrorsTotal_), "count");
 }
 
 void SensorManager::probeBME280() {
@@ -61,6 +83,15 @@ void SensorManager::readSensors() {
   }
 
   if (!bme280_.read()) {
+    bme280ReadErrorsTotal_++;
     Serial.println("[sensors] BME280 read failed");
+    return;
   }
+
+  bme280Current_.add(bme280_.lastReading());
+}
+
+void SensorManager::rotateMetricBuckets() {
+  bme280Previous_ = bme280Current_;
+  bme280Current_.reset();
 }

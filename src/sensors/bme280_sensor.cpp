@@ -4,7 +4,7 @@ bool Bme280Sensor::begin(uint8_t i2cAddress) {
   Wire.begin();
   available_ = bme_.begin(i2cAddress);
   lastReadOk_ = false;
-
+  
   if (available_) {
     Serial.print("[bme280] initialized at 0x");
     Serial.println(i2cAddress, HEX);
@@ -34,14 +34,24 @@ bool Bme280Sensor::read() {
   temperatureC_ = temp;
   humidityPct_ = hum;
   pressureHpa_ = pressPa / 100.0f;
+  lastReadMs_ = millis();
   lastReadOk_ = true;
-
   return true;
 }
 
 bool Bme280Sensor::available() const { return available_; }
 
 bool Bme280Sensor::lastReadOk() const { return lastReadOk_; }
+
+Bme280Reading Bme280Sensor::lastReading() const {
+  Bme280Reading reading;
+  reading.valid = available_ && lastReadOk_;
+  reading.temperatureC = temperatureC_;
+  reading.humidityPercent = humidityPct_;
+  reading.pressureHpa = pressureHpa_;
+  reading.timestampMs = lastReadMs_;
+  return reading;
+}
 
 void Bme280Sensor::walkFields(FieldVisitor visitor) const {
   if (!available_ || !lastReadOk_) {
