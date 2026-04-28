@@ -35,6 +35,15 @@ Typical BME280 wiring for many ESP32 development boards:
 
 The firmware calls `Wire.begin()` without custom pins, so it uses the default I2C pins for the selected ESP32 board. Adjust the code if your board uses different pins.
 
+## Related repository
+
+The observability stack for this project lives here:
+
+[`weather-station-observability`](https://github.com/azargarov/weather-station-observability)
+
+It contains Prometheus scrape configuration, Grafana dashboards, alert rules, and templates for running the monitoring stack locally.
+
+
 ## Project layout
 
 The code is structured around a few simple responsibilities:
