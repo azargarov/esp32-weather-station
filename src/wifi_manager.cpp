@@ -18,9 +18,9 @@ void WiFiManager::connect() {
   Serial.println(hostname);
 
   WiFi.setHostname(hostname.c_str());
+  applyStrongRadioSettings();
 
   WiFi.begin(Config::WIFI_SSID, Config::WIFI_PASSWORD);
-  applyStrongRadioSettings();
 
   uint32_t retries = 0;
   while (WiFi.status() != WL_CONNECTED &&
@@ -36,11 +36,12 @@ void WiFiManager::connect() {
     Serial.println("Connected");
     startMdns();
     printNetworkInfoToSerial(true);
+    wasConnected_ = true;
   } else {
+    wasConnected_ = false;
     Serial.print("WiFi connect failed, status=");
     Serial.println(wifiStatusToString(WiFi.status()));
   }
-  wasConnected_ = true;
 }
 
 void WiFiManager::ensureConnected() {
@@ -72,10 +73,12 @@ void WiFiManager::ensureConnected() {
   }
 
   lastReconnectAttempt_ = now;
-  Serial.println("[wifi] retrying...");
+  Serial.println("[wifi] retrying, status=");
+  Serial.println(wifiStatusToString(currentStatus));
 
-  WiFi.disconnect();
+  WiFi.disconnect(false, false);
   WiFi.mode(WIFI_STA);
+  applyStrongRadioSettings();
 
   String hostname = DeviceIdentity::getEffectiveHostname();
   WiFi.setHostname(hostname.c_str());
