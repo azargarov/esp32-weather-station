@@ -20,7 +20,7 @@ public:
   
   SensorType parseSensorType(const char* sensor);
   const char* sensorTypeToString(SensorType st);
-  bool setCalibration(SensorType st, const char* field, float offset);
+  bool setCalibration(SensorType st, const char* field, float reference);
   bool getCalibration(SensorType st, JsonDocument & doc);
 
 private:

@@ -112,10 +112,10 @@ void SensorManager::rotateMetricBuckets() {
   bme280Current_.reset();
 }
 
-bool SensorManager::setCalibration(SensorType st, const char* field, float offset){
+bool SensorManager::setCalibration(SensorType st, const char* field, float reference){
 
   if (st == SensorType::Bme280){
-      return bme280_.setCalibration(bme280_.parseBme280Field(field), offset);
+      return bme280_.setCalibrationFromReference(bme280_.parseBme280Field(field), reference);
   } else{
     return false;
   }

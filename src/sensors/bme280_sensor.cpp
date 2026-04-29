@@ -1,5 +1,10 @@
 #include "bme280_sensor.h"
 #include <Preferences.h>
+#include <mat.h>
+
+static float round1(float value) {
+  return roundf(value * 10.0f) / 10.0f;
+}
 
 Bme280Field Bme280Sensor::parseBme280Field(const char* field) {
   if (strcmp(field, "temperature") == 0) {
@@ -150,15 +155,25 @@ void Bme280Sensor::setPressureOffset(float offset) {
   pressure_.setOffset(offset);
 }
 
-bool Bme280Sensor::setCalibration(Bme280Field f, float offset){
+bool Bme280Sensor::setCalibrationFromReference(Bme280Field f, float reference){
+  
+  if (!lastReadOk_) {
+    return false;
+  }
+  
+  float offset = 0.0f; 
+
   switch(f){
     case Bme280Field::Temperature:
+      offset = round1(reference - temperature_.raw()) ;
       setTemperatureOffset(offset);
       break;
     case Bme280Field::Humidity:
+      offset = round1(reference - humidity_.raw());
       setHumidityOffset(offset);
       break;
     case Bme280Field::Pressure:
+      offset = round1(reference - pressure_.raw()); 
       setPressureOffset(offset);
       break;
     
@@ -169,7 +184,6 @@ bool Bme280Sensor::setCalibration(Bme280Field f, float offset){
 }
 
 bool Bme280Sensor::getCalibration(JsonDocument & doc) const{
-
 
   doc["sensor"] = "bme280";
   doc["available"] = available_;

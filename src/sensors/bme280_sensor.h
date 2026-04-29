@@ -85,7 +85,7 @@ public:
   void setHumidityOffset(float offset);
   void setPressureOffset(float offset);
   Bme280Field parseBme280Field(const char* field);
-  bool setCalibration(Bme280Field f, float offset);
+  bool setCalibrationFromReference(Bme280Field f, float reference);
   bool getCalibration(JsonDocument & doc) const;
 
 private:

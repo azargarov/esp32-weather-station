@@ -86,22 +86,24 @@ void HttpServer::handleSetCalibration(SensorType st ,const char* field) {
     return;
   }
 
-  if (!doc["offset"].is<float>()) {
-    server_.send(400, "application/json", "{\"error\":\"missing offset\"}");
+  if (!doc["reference"].is<float>()) {
+    server_.send(400, "application/json", "{\"error\":\"missing reference\"}");
     return;
   }
 
-  float offset = doc["offset"].as<float>();
+  float reference = doc["reference"].as<float>();
 
-  if ( ! sensorManager_.setCalibration(st, field, offset) ){
+  if ( ! sensorManager_.setCalibration(st, field, reference) ){
     server_.send(400, "application/json", "{\"error\":\"Bad Request\"}");
     return;
   }
   
   JsonDocument response;
-  response["sensor"] = sensorManager_.sensorTypeToString(st);
-  response["field"] = field;
-  response["offset"] = offset;
+
+  if (!sensorManager_.getCalibration(st, response)) {
+    server_.send(500, "application/json", "{\"error\":\"failed to read calibration\"}");
+    return;
+  }
 
   String body;
   serializeJson(response, body);
