@@ -6,13 +6,32 @@
 
 #include <Adafruit_BME280.h>
 #include <Arduino.h>
-#include <Wire.h>
+#include <ArduinoJson.h>
+#include "sensor.h"
+
+
+enum class Bme280Field {
+  Temperature,
+  Humidity,
+  Pressure,
+  Unknown
+};
 
 struct Bme280Reading {
   bool valid = false;
+
   float temperatureC = NAN;
+  float temperatureRawC = NAN;
+  float temperatureOffsetC = 0.0f;
+
   float humidityPercent = NAN;
+  float humidityRawPercent = NAN;
+  float humidityOffsetPercent = 0.0f;
+
   float pressureHpa = NAN;
+  float pressureRawHpa = NAN;
+  float pressureOffsetHpa = 0.0f;
+
   uint32_t timestampMs = 0;
 };
 
@@ -50,6 +69,7 @@ class Bme280Sensor : public SerializableSensor {
 public:
   bool begin(uint8_t i2cAddress);
   bool read();
+
   bool available() const;
   bool lastReadOk() const;
 
@@ -57,13 +77,26 @@ public:
 
   void walkFields(FieldVisitor visitor) const override;
 
+  bool loadCalibration();
+  bool saveCalibration();
+  void clearCalibration();
+
+  void setTemperatureOffset(float offset);
+  void setHumidityOffset(float offset);
+  void setPressureOffset(float offset);
+  Bme280Field parseBme280Field(const char* field);
+  bool setCalibration(Bme280Field f, float offset);
+  bool getCalibration(JsonDocument & doc) const;
+
 private:
-  Adafruit_BME280 bme_;
+  Adafruit_BME280 driver_;
+
+  CalibratedField temperature_{"temperature", "celsius"};
+  CalibratedField pressure_{"pressure", "hpa"};
+  CalibratedField humidity_{"humidity", "percent"};
+
   bool available_ = false;
   bool lastReadOk_ = false;
-
-  float temperatureC_ = NAN;
-  float humidityPct_ = NAN;
-  float pressureHpa_ = NAN;
   uint32_t lastReadMs_ = 0;
 };
+

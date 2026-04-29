@@ -1,5 +1,4 @@
 #include "http_server.h"
-#include "metrics_formatter.h"
 #include <ArduinoJson.h>
 
 namespace {
@@ -48,7 +47,68 @@ void HttpServer::registerRoutes() {
   server_.on("/api/device/hostname", HTTP_POST,
              [this]() { handleSetHostname(); });
   server_.on("/api/device/reboot", HTTP_POST, [this]() { handleReboot(); });
+
+  server_.on("/api/sensors/bme280/calibration", HTTP_GET,
+           [this]() { handleGetCalibration(SensorType::Bme280); });
+  server_.on("/api/sensors/bme280/temperature/calibration", HTTP_POST,
+           [this]() { handleSetCalibration(SensorType::Bme280,"temperature"); });
+  server_.on("/api/sensors/bme280/humidity/calibration", HTTP_POST,
+             [this]() { handleSetCalibration(SensorType::Bme280,"humidity"); });
+  server_.on("/api/sensors/bme280/pressure/calibration", HTTP_POST,
+             [this]() { handleSetCalibration(SensorType::Bme280,"pressure"); });          
 }
+
+void HttpServer::handleGetCalibration(SensorType st){
+  JsonDocument doc;
+
+  if (!sensorManager_.getCalibration(st, doc)){
+    server_.send(400, "application/json", "{\"error\":\"invalid sensor type\"}");
+    return;
+  }
+  
+  String body;
+  serializeJson(doc, body);
+
+  server_.send(200, "application/json", body);
+}
+
+void HttpServer::handleSetCalibration(SensorType st ,const char* field) {
+  if (!server_.hasArg("plain")) {
+    server_.send(400, "application/json", "{\"error\":\"missing body\"}");
+    return;
+  }
+
+  JsonDocument doc;
+  DeserializationError error = deserializeJson(doc, server_.arg("plain"));
+
+  if (error) {
+    server_.send(400, "application/json", "{\"error\":\"invalid json\"}");
+    return;
+  }
+
+  if (!doc["offset"].is<float>()) {
+    server_.send(400, "application/json", "{\"error\":\"missing offset\"}");
+    return;
+  }
+
+  float offset = doc["offset"].as<float>();
+
+  if ( ! sensorManager_.setCalibration(st, field, offset) ){
+    server_.send(400, "application/json", "{\"error\":\"Bad Request\"}");
+    return;
+  }
+  
+  JsonDocument response;
+  response["sensor"] = sensorManager_.sensorTypeToString(st);
+  response["field"] = field;
+  response["offset"] = offset;
+
+  String body;
+  serializeJson(response, body);
+
+  server_.send(200, "application/json", body);
+}
+
 
 void HttpServer::handleRoot() {
   String body = deviceService_.getTextStatus();

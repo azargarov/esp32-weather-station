@@ -2,6 +2,7 @@
 
 #include "device_service.h"
 #include "sensors/sensor_manager.h"
+#include "metrics_formatter.h"
 #include <Arduino.h>
 #include <WebServer.h>
 
@@ -28,4 +29,7 @@ private:
   void handleProvision();
   void handleSetHostname();
   void handleReboot();
+
+  void handleGetCalibration(SensorType);
+  void handleSetCalibration(SensorType st, const char* field);
 };

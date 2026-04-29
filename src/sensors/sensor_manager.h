@@ -5,6 +5,11 @@
 #include "sensor_data.h"
 #include <Arduino.h>
 
+enum class SensorType {
+  Bme280,
+  Unknown
+};
+
 class SensorManager {
 public:
   void begin();
@@ -12,9 +17,14 @@ public:
 
   SensorSnapshot snapshot() const;
   void walkFields(SerializableSensor::FieldVisitor visitor) const;
+  
+  SensorType parseSensorType(const char* sensor);
+  const char* sensorTypeToString(SensorType st);
+  bool setCalibration(SensorType st, const char* field, float offset);
+  bool getCalibration(SensorType st, JsonDocument & doc);
 
 private:
-  Bme280Sensor bme280_;
+  Bme280Sensor  bme280_;
   Bme280Metrics bme280Current_;
   Bme280Metrics bme280Previous_;
 

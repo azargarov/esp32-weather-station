@@ -5,6 +5,22 @@ namespace {
 constexpr unsigned long METRIC_BUCKET_INTERVAL_MS = 60000;
 }
 
+SensorType SensorManager::parseSensorType(const char* sensor) {
+  if (strcmp(sensor, "bme280") == 0) {
+    return SensorType::Bme280;
+  }
+  return SensorType::Unknown;
+}
+
+const char* SensorManager::sensorTypeToString(SensorType st) {
+  switch (st) {
+    case SensorType::Bme280:
+      return "bme280";
+    default:
+      return "unknown";
+  }
+}
+
 void SensorManager::begin() {
   lastMetricRotationMs_ = millis();
 
@@ -94,4 +110,24 @@ void SensorManager::readSensors() {
 void SensorManager::rotateMetricBuckets() {
   bme280Previous_ = bme280Current_;
   bme280Current_.reset();
+}
+
+bool SensorManager::setCalibration(SensorType st, const char* field, float offset){
+
+  if (st == SensorType::Bme280){
+      return bme280_.setCalibration(bme280_.parseBme280Field(field), offset);
+  } else{
+    return false;
+  }
+
+  return true;
+}
+
+bool SensorManager::getCalibration(SensorType st, JsonDocument & doc){
+
+  if (st == SensorType::Bme280){
+      return bme280_.getCalibration(doc);
+  } 
+
+  return false;
 }
