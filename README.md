@@ -695,15 +695,12 @@ curl -X POST http://192.168.1.233/api/device/reboot \
 ## Current limitations
 
 - No authentication is implemented. Keep the device on a trusted LAN or isolated IoT network.
-- Provisioned device ID cannot currently be changed through the HTTP API after it has been set.
 - Hostname changes require reboot before WiFi hostname and mDNS fully update.
 - BME280 dynamic re-probing is prepared in the configuration, but the current update loop does not actively re-probe after boot.
 - There is no OTA update support yet.
-- There is no calibration API yet.
 
 ## Possible next steps
 
-- Add a calibration API for temperature, humidity, and pressure offsets.
 - Add automatic BME280 re-probing if the sensor is connected after boot.
 - Add OTA firmware updates.
 - Add a small OLED display for local status.
