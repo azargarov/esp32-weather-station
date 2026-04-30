@@ -13,4 +13,4 @@ struct DeviceState {
 };
 
 String wifiStatusToString(wl_status_t status);
-DeviceState collectDeviceState();
+void collectDeviceState(DeviceState &state);

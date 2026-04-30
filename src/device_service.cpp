@@ -104,7 +104,8 @@ DeviceService::DeviceService(SensorManager &sensorManager)
     : sensorManager_(sensorManager) {}
 
 String DeviceService::getTextStatus() {
-  const DeviceState state = collectDeviceState();
+  DeviceState state;
+  collectDeviceState(state);
 
   // snapshot these once — each call returns String by value
   const String hwId       = DeviceIdentity::getHardwareId();
@@ -136,7 +137,8 @@ String DeviceService::getTextStatus() {
 
 
 void DeviceService::getJSONStatus(JsonDocument &doc) {
-  const DeviceState state = collectDeviceState();
+  DeviceState state;
+  collectDeviceState(state);
 
   fillIdentityJson(doc);
   fillStatusJson(doc, state);
@@ -144,12 +146,14 @@ void DeviceService::getJSONStatus(JsonDocument &doc) {
 }
 
 String DeviceService::getMetrics() {
-  const DeviceState state = collectDeviceState();
+  DeviceState state;
+  collectDeviceState(state);
   return formatPrometheusMetrics(state, sensorManager_);
 }
 
 void DeviceService::getDeviceInfo(JsonDocument &doc) {
-  const DeviceState state = collectDeviceState();
+  DeviceState state;
+  collectDeviceState(state);
 
   fillIdentityJson(doc);
   doc["ip"] = state.wifiConnected ? state.ip : "n/a";

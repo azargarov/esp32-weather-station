@@ -23,13 +23,13 @@ String wifiStatusToString(wl_status_t status) {
   }
 }
 
-DeviceState collectDeviceState() {
-  DeviceState state;
+void collectDeviceState(DeviceState &state) {
+  //DeviceState state;
   state.wifiConnected = (WiFi.status() == WL_CONNECTED);
   state.ip = state.wifiConnected ? WiFi.localIP().toString() : "";
   state.wifiStatus = wifiStatusToString(WiFi.status());
   state.uptimeSec = millis() / 1000;
   state.freeHeapBytes = ESP.getFreeHeap();
   state.wifiRssiDbm = state.wifiConnected ? WiFi.RSSI() : 0;
-  return state;
+  //return state;
 }
