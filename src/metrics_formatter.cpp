@@ -3,39 +3,36 @@
 
 namespace {
 
-String prometheusLabelEscape(const String &s) {
-  String out;
-  out.reserve(s.length() + 8);
+String cachedBaseLabels;
 
-  for (size_t i = 0; i < s.length(); ++i) {
-    char c = s[i];
+void appendEscapedLabelValue(String& out, const String& value) {
+  for (size_t i = 0; i < value.length(); ++i) {
+    const char c = value[i];
     switch (c) {
-    case '\\':
-      out += "\\\\";
-      break;
-    case '\"':
-      out += "\\\"";
-      break;
-    case '\n':
-      out += "\\n";
-      break;
-    default:
-      out += c;
-      break;
+      case '\\':
+        out += "\\\\";
+        break;
+      case '"':
+        out += "\\\"";
+        break;
+      case '\n':
+        out += "\\n";
+        break;
+      default:
+        out += c;
+        break;
     }
   }
-
-  return out;
 }
 
-String baseLabels() {
+String buildBaseLabels() {
   String labels;
   labels.reserve(96);
 
-  labels += "device_id=\"";
-  labels += prometheusLabelEscape(DeviceIdentity::getEffectiveId());
+  labels = "device_id=\"";
+  appendEscapedLabelValue(labels, DeviceIdentity::getEffectiveId());
   labels += "\",hardware_id=\"";
-  labels += prometheusLabelEscape(DeviceIdentity::getHardwareId());
+  appendEscapedLabelValue(labels, DeviceIdentity::getHardwareId());
   labels += "\"";
 
   return labels;
@@ -44,7 +41,7 @@ String baseLabels() {
 String sensorLabels(const String &baseLabels, const char *unit) {
   String labels = baseLabels;
   labels += ",unit=\"";
-  labels += prometheusLabelEscape(String(unit));
+  appendEscapedLabelValue(labels, String(unit));
   labels += "\"";
   return labels;
 }
@@ -99,7 +96,7 @@ void appendInfoGauge(String &out, const String &labels, const char *name,
   labeled += ",";
   labeled += labelKey;
   labeled += "=\"";
-  labeled += prometheusLabelEscape(labelVal);
+  appendEscapedLabelValue(labeled, labelVal);
   labeled += "\"";
 
   appendGauge(out, labeled, name, help, "1");
@@ -119,14 +116,26 @@ String sensorMetricName(const char *key) {
   return name;
 }
 
+
 } // namespace
+
+void initMetricsFormatter() {
+  cachedBaseLabels = buildBaseLabels();
+}
+
+const String& getBaseLabels() {
+  if (cachedBaseLabels.isEmpty()) {
+    cachedBaseLabels = buildBaseLabels();
+  }
+  return cachedBaseLabels;
+}
 
 String formatPrometheusMetrics(const DeviceState &state,
                                const SensorManager &sensorManager) {
   String metrics;
   metrics.reserve(2600);
 
-  const String labels = baseLabels();
+  const String& labels = getBaseLabels();
   const SensorSnapshot sensors = sensorManager.snapshot();
 
   appendGauge(metrics, labels, "esp32_up",

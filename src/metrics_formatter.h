@@ -6,3 +6,6 @@
 
 String formatPrometheusMetrics(const DeviceState &state,
                                const SensorManager &sensorManager);
+
+void initMetricsFormatter();
+const String& getBaseLabels();

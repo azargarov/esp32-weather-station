@@ -51,7 +51,7 @@ void ensureInitialized() {
 
 void begin() { 
   ensureInitialized(); 
-  //initMetricsFormatter();
+  initMetricsFormatter();
 }
 
 String getHardwareId() {
