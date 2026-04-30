@@ -7,14 +7,14 @@
 
 void WiFiManager::connect() {
   Serial.println();
-  Serial.print("Connecting to WiFi: ");
+  Serial.print(F("Connecting to WiFi: "));
   Serial.println(Config::WIFI_SSID);
 
   WiFi.mode(WIFI_STA);
 
   String hostname = DeviceIdentity::getEffectiveHostname();
 
-  Serial.print("[wifi] applying hostname: ");
+  Serial.print(F("[wifi] applying hostname: "));
   Serial.println(hostname);
 
   WiFi.setHostname(hostname.c_str());
@@ -33,13 +33,13 @@ void WiFiManager::connect() {
   Serial.println();
 
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("Connected");
+    Serial.println(F("Connected"));
     startMdns();
     printNetworkInfoToSerial(true);
     wasConnected_ = true;
   } else {
     wasConnected_ = false;
-    Serial.print("WiFi connect failed, status=");
+    Serial.print(F("WiFi connect failed, status="));
     Serial.println(wifiStatusToString(WiFi.status()));
   }
 }
@@ -51,7 +51,7 @@ void WiFiManager::ensureConnected() {
   // Detect reconnection: was disconnected, now connected
   if (currentlyConnected && !wasConnected_) {
     wasConnected_ = true;
-    Serial.println("[wifi] reconnected");
+    Serial.println(F("[wifi] reconnected"));
     startMdns();
     printNetworkInfoToSerial(true);
     return;
@@ -63,7 +63,7 @@ void WiFiManager::ensureConnected() {
 
   if (wasConnected_) {
     wasConnected_ = false;
-    Serial.println("[wifi] connection lost");
+    Serial.println(F("[wifi] connection lost"));
     MDNS.end();
   }
 
@@ -73,7 +73,7 @@ void WiFiManager::ensureConnected() {
   }
 
   lastReconnectAttempt_ = now;
-  Serial.println("[wifi] retrying, status=");
+  Serial.println(F("[wifi] retrying, status="));
   Serial.println(wifiStatusToString(currentStatus));
 
   WiFi.disconnect(false, false);
@@ -88,7 +88,7 @@ void WiFiManager::ensureConnected() {
 void WiFiManager::printNetworkInfoToSerial(bool force) {
   if (WiFi.status() != WL_CONNECTED) {
     if (force) {
-      Serial.println("[net] WiFi not connected");
+      Serial.println(F("[net] WiFi not connected"));
     }
     return;
   }
@@ -97,20 +97,20 @@ void WiFiManager::printNetworkInfoToSerial(bool force) {
 
   if (force || currentIp != lastPrintedIp_) {
     Serial.println();
-    Serial.println("=== ESP32 network info ===");
-    Serial.print("SSID: ");
+    Serial.println(F("=== ESP32 network info ==="));
+    Serial.print(F("SSID: "));
     Serial.println(Config::WIFI_SSID);
-    Serial.print("IP: ");
+    Serial.print(F("IP: "));
     Serial.println(currentIp);
-    Serial.print("RSSI: ");
+    Serial.print(F("RSSI: "));
     Serial.print(WiFi.RSSI());
-    Serial.println(" dBm");
-    Serial.print("Hostname: ");
+    Serial.println(F(" dBm"));
+    Serial.print(F("Hostname: "));
     Serial.println(WiFi.getHostname());
-    Serial.print("mDNS: http://");
+    Serial.print(F("mDNS: http://"));
     Serial.print(DeviceIdentity::getEffectiveHostname());
-    Serial.println(".local");
-    Serial.println("=========================");
+    Serial.println(F(".local"));
+    Serial.println(F("========================="));
     Serial.println();
 
     lastPrintedIp_ = currentIp;
@@ -155,20 +155,20 @@ void WiFiManager::applyStrongRadioSettings() {
 void WiFiManager::startMdns() {
   String hostname = DeviceIdentity::getEffectiveHostname();
 
-  Serial.print("[mdns] using hostname: ");
+  Serial.print(F("[mdns] using hostname: "));
   Serial.println(hostname);
 
   if (hostname.isEmpty()) {
-    Serial.println("[mdns] hostname is empty, skipping mDNS");
+    Serial.println(F("[mdns] hostname is empty, skipping mDNS"));
     return;
   }
 
   if (MDNS.begin(hostname.c_str())) {
     MDNS.addService("http", "tcp", 80);
-    Serial.print("[mdns] started: http://");
+    Serial.print(F("[mdns] started: http://"));
     Serial.print(hostname);
-    Serial.println(".local");
+    Serial.println(F(".local"));
   } else {
-    Serial.println("[mdns] failed to start");
+    Serial.println(F("[mdns] failed to start"));
   }
 }
