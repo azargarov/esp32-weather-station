@@ -145,10 +145,10 @@ void DeviceService::getJSONStatus(JsonDocument &doc) {
   fillSensorJson(doc["sensors"].to<JsonObject>(), sensorManager_);
 }
 
-String DeviceService::getMetrics() {
+void DeviceService::getMetrics(String& out) {
   DeviceState state;
   collectDeviceState(state);
-  return formatPrometheusMetrics(state, sensorManager_);
+  formatPrometheusMetrics(out,state, sensorManager_);
 }
 
 void DeviceService::getDeviceInfo(JsonDocument &doc) {

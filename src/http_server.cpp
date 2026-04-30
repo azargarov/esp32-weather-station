@@ -166,7 +166,8 @@ void HttpServer::handleJson() {
 void HttpServer::handleHealthz() { server_.send(200, "text/plain", "OK\n"); }
 
 void HttpServer::handleMetrics() {
-  String metrics = deviceService_.getMetrics();
+  String metrics;
+  deviceService_.getMetrics(metrics);
   server_.send(200, "text/plain; version=0.0.4", metrics);
 }
 

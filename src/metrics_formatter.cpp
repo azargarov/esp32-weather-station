@@ -9,18 +9,22 @@ void appendEscapedLabelValue(String& out, const String& value) {
   for (size_t i = 0; i < value.length(); ++i) {
     const char c = value[i];
     switch (c) {
-      case '\\':
-        out += "\\\\";
-        break;
-      case '"':
-        out += "\\\"";
-        break;
-      case '\n':
-        out += "\\n";
-        break;
-      default:
-        out += c;
-        break;
+      case '\\': out += "\\\\";break;
+      case '"':  out += "\\\"";break;
+      case '\n': out += "\\n";break;
+      default:   out += c;break;
+    }
+  }
+}
+
+void appendEscapedLabelValue(String& out, const char* value) {
+  for (const char* p = value; *p != '\0'; ++p) {
+    const char c = *p;
+    switch (c) {
+      case '\\': out += "\\\\"; break;
+      case '"':  out += "\\\""; break;
+      case '\n': out += "\\n"; break;
+      default:   out += c; break;
     }
   }
 }
@@ -36,7 +40,7 @@ void buildBaseLabels(String& out) {
 void sensorLabels(String& out, const String &baseLabels, const char *unit) {
   out = baseLabels;
   out += ",unit=\"";
-  appendEscapedLabelValue(out, String(unit));
+  appendEscapedLabelValue(out, unit);
   out += "\"";
 }
 
@@ -115,10 +119,12 @@ void sensorMetricName(String& out, const char *key) {
   }
 }
 
-void appendInfoGauge(String &out, const String &labels, const char *name,
-                     const char *help, const char *labelKey,
-                     const String &labelVal) {
-  String labeled = labels;
+void appendInfoGauge(String& out, const String& labels, const char* name,
+                     const char* help, const char* labelKey,
+                     const String& labelVal) {
+  String labeled;
+  labeled.reserve(labels.length() + strlen(labelKey) + labelVal.length() + 8);
+  labeled = labels;
   labeled += ",";
   labeled += labelKey;
   labeled += "=\"";
@@ -141,47 +147,50 @@ const String& getBaseLabels() {
   return cachedBaseLabels;
 }
 
-String formatPrometheusMetrics(const DeviceState &state,
+void formatPrometheusMetrics(String& out, const DeviceState &state,
                                const SensorManager &sensorManager) {
-  String metrics;
-  metrics.reserve(2600);
+  //String metrics;
+  out = "";
+  out.reserve(2600);
 
   const String& labels = getBaseLabels();
   const SensorSnapshot sensors = sensorManager.snapshot();
 
-  appendGauge(metrics, labels, "esp32_up",
+  appendGauge(out, labels, "esp32_up",
               "Whether the ESP32 application is running.", true);
 
-  appendGauge(metrics, labels, "esp32_wifi_connected",
+  appendGauge(out, labels, "esp32_wifi_connected",
               "Whether WiFi is connected.", state.wifiConnected);
 
-  appendGauge(metrics, labels, "esp32_uptime_seconds",
+  appendGauge(out, labels, "esp32_uptime_seconds",
               "Time since boot in seconds.", state.uptimeSec);
 
-  appendGauge(metrics, labels, "esp32_heap_free_bytes", "Free heap in bytes.",
+  appendGauge(out, labels, "esp32_heap_free_bytes", "Free heap in bytes.",
               state.freeHeapBytes);
 
-  appendGauge(metrics, labels, "esp32_wifi_rssi_dbm", "WiFi RSSI in dBm.",
+  appendGauge(out, labels, "esp32_wifi_rssi_dbm", "WiFi RSSI in dBm.",
               state.wifiRssiDbm);
 
-  appendInfoGauge(metrics, labels, "esp32_wifi_status_info",
+  appendInfoGauge(out, labels, "esp32_wifi_status_info",
                   "WiFi status as an informational labeled metric.", "status",
                   state.wifiStatus);
 
-  appendGauge(metrics, labels, "esp32_bme280_available",
+  appendGauge(out, labels, "esp32_bme280_available",
               "Whether the BME280 sensor is available.",
               sensors.bme280Available);
 
-  appendGauge(metrics, labels, "esp32_bme280_read_ok",
+  appendGauge(out, labels, "esp32_bme280_read_ok",
               "Whether the last BME280 read succeeded.", sensors.bme280ReadOk);
-
-  sensorManager.walkFields([&metrics, &labels](const char *key, float value,
+  
+  String name;
+  String labeled;
+  name.reserve(64);
+  labeled.reserve(128);
+  sensorManager.walkFields([&out, &labels, &name, &labeled](const char *key, float value,
                                                const char *unit) {
-    String name, labeled;
     sensorMetricName(name, key);
     sensorLabels(labeled, labels, unit);
-    appendGauge(metrics, labeled, name.c_str(), "Sensor measurement.", value);
+    appendGauge(out, labeled, name.c_str(), "Sensor measurement.", value);
   });
 
-  return metrics;
 }

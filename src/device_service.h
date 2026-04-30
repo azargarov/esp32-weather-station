@@ -18,7 +18,7 @@ public:
 
   String getTextStatus();
   void getJSONStatus(JsonDocument &doc);
-  String getMetrics();
+  void getMetrics(String& out);
   void getDeviceInfo(JsonDocument &doc);
 
   Result provisionDevice(const String &newId, const String &newHostname,
