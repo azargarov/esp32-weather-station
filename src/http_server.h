@@ -13,8 +13,12 @@ public:
   void handleClient();
 
 private:
-  uint32_t kRebootDelayMs = 500;
-  uint32_t kRebootFinalDelayMs = 50;
+
+  static constexpr const char *kCalibrationPrefix = "/api/sensors/";
+  static constexpr const char *kCalibrationSuffix = "/calibration";
+
+  static constexpr uint32_t kRebootDelayMs = 500;
+  static constexpr uint32_t kRebootFinalDelayMs = 50;
 
   WebServer server_;
   SensorManager &sensorManager_;
@@ -29,7 +33,10 @@ private:
   void handleProvision();
   void handleSetHostname();
   void handleReboot();
+  void handleDynamicCalibrationRoute(); 
 
   void handleGetCalibration(SensorType);
-  void handleSetCalibration(SensorType st, const char* field);
+  void processSetCalibration(SensorType st, const char * field);
+  bool extractCalibrationPath(const String& uri, String& sensor, String& field);
+  bool extractSensorCalibrationPath(const String& uri, String& sensor);
 };
