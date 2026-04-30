@@ -1,5 +1,5 @@
 #pragma once
-#include <Wire.h>
+#include <math.h>
 
 class CalibratedField {
 public:

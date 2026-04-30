@@ -1,5 +1,5 @@
 #include "device_identity.h"
-
+#include "metrics_formatter.h"
 #include <Preferences.h>
 #include <esp_system.h>
 
@@ -49,7 +49,10 @@ void ensureInitialized() {
 
 } // namespace
 
-void begin() { ensureInitialized(); }
+void begin() { 
+  ensureInitialized(); 
+  initMetricsFormatter();
+}
 
 String getHardwareId() {
   ensureInitialized();

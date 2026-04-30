@@ -2,7 +2,6 @@
 
 #include "device_service.h"
 #include "sensors/sensor_manager.h"
-#include "metrics_formatter.h"
 #include <Arduino.h>
 #include <WebServer.h>
 
@@ -17,8 +16,8 @@ private:
   static constexpr const char *kCalibrationPrefix = "/api/sensors/";
   static constexpr const char *kCalibrationSuffix = "/calibration";
 
-  static constexpr uint32_t kRebootDelayMs = 500;
-  static constexpr uint32_t kRebootFinalDelayMs = 50;
+  //static constexpr uint32_t kRebootDelayMs = 500;
+  //static constexpr uint32_t kRebootFinalDelayMs = 50;
 
   WebServer server_;
   SensorManager &sensorManager_;

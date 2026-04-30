@@ -3,7 +3,7 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 
-#include "metrics_formatter.h"
+//#include "metrics_formatter.h"
 #include "sensors/sensor_manager.h"
 
 class DeviceService {

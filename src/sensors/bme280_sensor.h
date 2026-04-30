@@ -1,7 +1,6 @@
 #pragma once
 
 #include "data_serialization.h"
-#include "sensor_data.h"
 #include "aggregated_metric.h"
 
 #include <Adafruit_BME280.h>

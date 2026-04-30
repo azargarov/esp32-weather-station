@@ -106,32 +106,34 @@ DeviceService::DeviceService(SensorManager &sensorManager)
 String DeviceService::getTextStatus() {
   const DeviceState state = collectDeviceState();
 
-  char header[512];
-
-  snprintf(header, sizeof(header),
-           "ESP32 is alive\n"
-           "Hardware ID:    %s\n"
-           "Provisioned ID: %s\n"
-           "Effective ID:   %s\n"
-           "Hostname:       %s\n"
-           "IP:             %s\n"
-           "Uptime:         %lu sec\n\n",
-           DeviceIdentity::getHardwareId().c_str(),
-           DeviceIdentity::hasProvisionedId()
-               ? DeviceIdentity::getProvisionedId().c_str()
-               : "(not set)",
-           DeviceIdentity::getEffectiveId().c_str(),
-           DeviceIdentity::getEffectiveHostname().c_str(),
-           state.wifiConnected ? state.ip.c_str() : "n/a", state.uptimeSec);
+  // snapshot these once — each call returns String by value
+  const String hwId       = DeviceIdentity::getHardwareId();
+  const String effId      = DeviceIdentity::getEffectiveId();
+  const String hostname   = DeviceIdentity::getEffectiveHostname();
 
   String body;
-  body.reserve(700);
-  body = header;
+  body.reserve(400);
+
+  body += "ESP32 is alive\n";
+  body += "Hardware ID:    "; body += hwId;      body += '\n';
+  body += "Provisioned ID: ";
+  if (DeviceIdentity::hasProvisionedId()) {
+    body += DeviceIdentity::getProvisionedId();
+  } else {
+    body += "(not set)";
+  }
+  body += '\n';
+  body += "Effective ID:   "; body += effId;     body += '\n';
+  body += "Hostname:       "; body += hostname;  body += '\n';
+  body += "IP:             ";
+  body += state.wifiConnected ? state.ip : "n/a";
+  body += '\n';
+  body += "Uptime:         "; body += state.uptimeSec; body += " sec\n\n";
 
   appendSensorText(body, sensorManager_);
-
   return body;
 }
+
 
 void DeviceService::getJSONStatus(JsonDocument &doc) {
   const DeviceState state = collectDeviceState();

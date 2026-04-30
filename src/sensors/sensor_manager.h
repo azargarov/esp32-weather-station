@@ -3,7 +3,7 @@
 #include "bme280_sensor.h"
 #include "data_serialization.h"
 #include "sensor_data.h"
-#include <Arduino.h>
+#include <ArduinoJson.h>
 
 enum class SensorType {
   Bme280,
