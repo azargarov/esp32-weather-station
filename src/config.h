@@ -1,12 +1,12 @@
 #pragma once
 
-#include <stdint.h>
 #include <secrets.h>
+#include <stdint.h>
 
 namespace Config {
 constexpr uint32_t CPU_FREQ_MHZ = 240;
 constexpr uint32_t SERIAL_BAUD = 115200;
-constexpr uint32_t LOOP_DELAY_MS = 10;
+constexpr uint32_t LOOP_DELAY_MS = 1;
 
 constexpr uint32_t WIFI_CONNECT_RETRY_DELAY_MS = 500;
 constexpr uint32_t WIFI_CONNECT_MAX_RETRIES_MAX_POWER = 30;

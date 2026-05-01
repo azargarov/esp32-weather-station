@@ -9,6 +9,18 @@ namespace {
 constexpr uint32_t kRebootDelayMs = 500;
 constexpr uint32_t kRestartFlushDelayMs = 50;
 
+struct SensorMetricFormatContext {
+  String *out;
+  String *nameBuffer;
+  String *labelsBuffer;
+};
+
+void appendSensorMetricCallback(const SensorMetric &metric, void *context) {
+  auto *ctx = static_cast<SensorMetricFormatContext *>(context);
+
+  appendSensorMetric(*ctx->out, *ctx->nameBuffer, *ctx->labelsBuffer, metric);
+}
+
 void fillIdentityJson(JsonDocument &doc) {
   doc["device_id"] = DeviceIdentity::getProvisionedId();
   doc["hardware_id"] = DeviceIdentity::getHardwareId();
@@ -101,22 +113,44 @@ void fillHostnameResponse(JsonDocument &doc) {
 } // namespace
 
 DeviceService::DeviceService(SensorManager &sensorManager)
-    : sensorManager_(sensorManager) {}
+    : sensorManager_(sensorManager) {
+
+  cachedMetrics_.reserve(2600);
+  metricNameBuffer_.reserve(64);
+  metricLabelsBuffer_.reserve(128);
+}
+
+const String &DeviceService::getMetrics() const { return cachedMetrics_; }
+
+void DeviceService::updateMetricsCache() {
+  DeviceState state;
+  collectDeviceState(state);
+
+  cachedMetrics_ = "";
+
+  formatDeviceMetrics(cachedMetrics_, state);
+
+  SensorMetricFormatContext ctx{&cachedMetrics_, &metricNameBuffer_,
+                                &metricLabelsBuffer_};
+
+  sensorManager_.walkMetrics(appendSensorMetricCallback, &ctx);
+}
 
 String DeviceService::getTextStatus() {
   DeviceState state;
   collectDeviceState(state);
 
-  // snapshot these once — each call returns String by value
-  const String hwId       = DeviceIdentity::getHardwareId();
-  const String effId      = DeviceIdentity::getEffectiveId();
-  const String hostname   = DeviceIdentity::getEffectiveHostname();
+  const String hwId = DeviceIdentity::getHardwareId();
+  const String effId = DeviceIdentity::getEffectiveId();
+  const String hostname = DeviceIdentity::getEffectiveHostname();
 
   String body;
   body.reserve(400);
 
   body += "ESP32 is alive\n";
-  body += "Hardware ID:    "; body += hwId;      body += '\n';
+  body += "Hardware ID:    ";
+  body += hwId;
+  body += '\n';
   body += "Provisioned ID: ";
   if (DeviceIdentity::hasProvisionedId()) {
     body += DeviceIdentity::getProvisionedId();
@@ -124,17 +158,22 @@ String DeviceService::getTextStatus() {
     body += "(not set)";
   }
   body += '\n';
-  body += "Effective ID:   "; body += effId;     body += '\n';
-  body += "Hostname:       "; body += hostname;  body += '\n';
+  body += "Effective ID:   ";
+  body += effId;
+  body += '\n';
+  body += "Hostname:       ";
+  body += hostname;
+  body += '\n';
   body += "IP:             ";
   body += state.wifiConnected ? state.ip : "n/a";
   body += '\n';
-  body += "Uptime:         "; body += state.uptimeSec; body += " sec\n\n";
+  body += "Uptime:         ";
+  body += state.uptimeSec;
+  body += " sec\n\n";
 
   appendSensorText(body, sensorManager_);
   return body;
 }
-
 
 void DeviceService::getJSONStatus(JsonDocument &doc) {
   DeviceState state;
@@ -144,13 +183,6 @@ void DeviceService::getJSONStatus(JsonDocument &doc) {
   fillStatusJson(doc, state);
   fillSensorJson(doc["sensors"].to<JsonObject>(), sensorManager_);
 }
-
-void DeviceService::getMetrics(String& out) {
-  DeviceState state;
-  collectDeviceState(state);
-  formatPrometheusMetrics(out,state, sensorManager_);
-}
-
 void DeviceService::getDeviceInfo(JsonDocument &doc) {
   DeviceState state;
   collectDeviceState(state);

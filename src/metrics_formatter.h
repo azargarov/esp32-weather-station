@@ -4,8 +4,11 @@
 #include "sensors/sensor_manager.h"
 #include <Arduino.h>
 
-void formatPrometheusMetrics(String& out, const DeviceState &state,
-                               const SensorManager &sensorManager);
-
 void initMetricsFormatter();
-const String& getBaseLabels();
+
+const String &getBaseLabels();
+
+void formatDeviceMetrics(String &out, const DeviceState &state);
+
+void appendSensorMetric(String &out, String &nameBuffer, String &labelsBuffer,
+                        const SensorMetric &metric);

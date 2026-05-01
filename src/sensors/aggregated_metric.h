@@ -1,15 +1,15 @@
 #pragma once
 
-#include <stdint.h>
 #include <math.h>
+#include <stdint.h>
 
 class MetricStats {
 public:
-  void add(float value); 
+  void add(float value);
 
-  float average() const; 
+  float average() const;
 
-  float stddev() const; 
+  float stddev() const;
 
   float latest() const;
 

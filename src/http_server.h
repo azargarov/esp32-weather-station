@@ -10,14 +10,14 @@ public:
   HttpServer(SensorManager &sensorManager, uint16_t port = 80);
   void begin();
   void handleClient();
+  void updateMetricsCache();
 
 private:
-
   static constexpr const char *kCalibrationPrefix = "/api/sensors/";
   static constexpr const char *kCalibrationSuffix = "/calibration";
 
-  //static constexpr uint32_t kRebootDelayMs = 500;
-  //static constexpr uint32_t kRebootFinalDelayMs = 50;
+  // static constexpr uint32_t kRebootDelayMs = 500;
+  // static constexpr uint32_t kRebootFinalDelayMs = 50;
 
   WebServer server_;
   SensorManager &sensorManager_;
@@ -32,10 +32,10 @@ private:
   void handleProvision();
   void handleSetHostname();
   void handleReboot();
-  void handleDynamicCalibrationRoute(); 
+  void handleDynamicCalibrationRoute();
 
   void handleGetCalibration(SensorType);
-  void processSetCalibration(SensorType st, const char * field);
-  bool extractCalibrationPath(const String& uri, String& sensor, String& field);
-  bool extractSensorCalibrationPath(const String& uri, String& sensor);
+  void processSetCalibration(SensorType st, const char *field);
+  bool extractCalibrationPath(const String &uri, String &sensor, String &field);
+  bool extractSensorCalibrationPath(const String &uri, String &sensor);
 };

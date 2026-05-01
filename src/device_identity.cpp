@@ -49,8 +49,8 @@ void ensureInitialized() {
 
 } // namespace
 
-void begin() { 
-  ensureInitialized(); 
+void begin() {
+  ensureInitialized();
   initMetricsFormatter();
 }
 

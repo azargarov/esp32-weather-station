@@ -5,19 +5,19 @@ namespace {
 constexpr unsigned long METRIC_BUCKET_INTERVAL_MS = 60000;
 }
 
-SensorType SensorManager::parseSensorType(const char* sensor) {
+SensorType SensorManager::parseSensorType(const char *sensor) {
   if (strcmp(sensor, "bme280") == 0) {
     return SensorType::Bme280;
   }
   return SensorType::Unknown;
 }
 
-const char* SensorManager::sensorTypeToString(SensorType st) {
+const char *SensorManager::sensorTypeToString(SensorType st) {
   switch (st) {
-    case SensorType::Bme280:
-      return "bme280";
-    default:
-      return "unknown";
+  case SensorType::Bme280:
+    return "bme280";
+  default:
+    return "unknown";
   }
 }
 
@@ -44,13 +44,10 @@ void SensorManager::update() {
     readSensors();
   }
 
-  if (bme280Present_ && now - lastMetricRotationMs_ >= METRIC_BUCKET_INTERVAL_MS) {
+  if (bme280Present_ &&
+      now - lastMetricRotationMs_ >= METRIC_BUCKET_INTERVAL_MS) {
     lastMetricRotationMs_ = now;
     rotateMetricBuckets();
-  }
-
-  if (bme280Present_) {
-    return;
   }
 }
 
@@ -62,9 +59,8 @@ SensorSnapshot SensorManager::snapshot() const {
 }
 
 void SensorManager::walkFields(SerializableSensor::FieldVisitor visitor) const {
-  const Bme280Metrics& metrics = bme280Previous_.hasValue()
-    ? bme280Previous_
-    : bme280Current_;
+  const Bme280Metrics &metrics =
+      bme280Previous_.hasValue() ? bme280Previous_ : bme280Current_;
 
   if (!metrics.hasValue()) {
     return;
@@ -79,8 +75,10 @@ void SensorManager::walkFields(SerializableSensor::FieldVisitor visitor) const {
   visitor("pressure_avg_60s", metrics.pressure.average(), "hpa");
   visitor("pressure_stddev_60s", metrics.pressure.stddev(), "hpa");
 
-  visitor("bme280_samples_60s", static_cast<float>(metrics.sampleCount()), "count");
-  visitor("bme280_read_errors_total", static_cast<float>(bme280ReadErrorsTotal_), "count");
+  visitor("bme280_samples_60s", static_cast<float>(metrics.sampleCount()),
+          "count");
+  visitor("bme280_read_errors_total",
+          static_cast<float>(bme280ReadErrorsTotal_), "count");
 }
 
 void SensorManager::probeBME280() {
@@ -112,22 +110,81 @@ void SensorManager::rotateMetricBuckets() {
   bme280Current_.reset();
 }
 
-bool SensorManager::setCalibration(SensorType st, const char* field, float reference){
+bool SensorManager::setCalibration(SensorType st, const char *field,
+                                   float reference) {
 
-  if (st == SensorType::Bme280){
-      return bme280_.setCalibrationFromReference(bme280_.parseBme280Field(field), reference);
-  } else{
+  if (st == SensorType::Bme280) {
+    return bme280_.setCalibrationFromReference(bme280_.parseBme280Field(field),
+                                               reference);
+  } else {
     return false;
   }
 
   return true;
 }
 
-bool SensorManager::getCalibration(SensorType st, JsonDocument & doc){
+bool SensorManager::getCalibration(SensorType st, JsonDocument &doc) {
 
-  if (st == SensorType::Bme280){
-      return bme280_.getCalibration(doc);
-  } 
+  if (st == SensorType::Bme280) {
+    return bme280_.getCalibration(doc);
+  }
 
   return false;
+}
+
+void SensorManager::walkMetrics(SensorMetricVisitor visitor,
+                                void *context) const {
+  if (visitor == nullptr) {
+    return;
+  }
+
+  visitor({"bme280_available", bme280_.available() ? 1.0f : 0.0f, "bool",
+           "Whether the BME280 sensor is available.",
+           SensorMetricValueType::Bool},
+          context);
+
+  visitor({"bme280_read_ok", bme280_.lastReadOk() ? 1.0f : 0.0f, "bool",
+           "Whether the last BME280 read succeeded.",
+           SensorMetricValueType::Bool},
+          context);
+
+  const Bme280Metrics &metrics =
+      bme280Previous_.hasValue() ? bme280Previous_ : bme280Current_;
+
+  if (!metrics.hasValue()) {
+    return;
+  }
+
+  visitor({"temperature_avg_60s", metrics.temperature.average(), "celsius",
+           "Average temperature over the last statistics window."},
+          context);
+
+  visitor({"temperature_stddev_60s", metrics.temperature.stddev(), "celsius",
+           "Temperature standard deviation over the last statistics window."},
+          context);
+
+  visitor({"humidity_avg_60s", metrics.humidity.average(), "percent",
+           "Average humidity over the last statistics window."},
+          context);
+
+  visitor({"humidity_stddev_60s", metrics.humidity.stddev(), "percent",
+           "Humidity standard deviation over the last statistics window."},
+          context);
+
+  visitor({"pressure_avg_60s", metrics.pressure.average(), "hpa",
+           "Average pressure over the last statistics window."},
+          context);
+
+  visitor({"pressure_stddev_60s", metrics.pressure.stddev(), "hpa",
+           "Pressure standard deviation over the last statistics window."},
+          context);
+
+  visitor({"bme280_samples_60s", static_cast<float>(metrics.sampleCount()),
+           "count", "Number of BME280 samples in the statistics window."},
+          context);
+
+  visitor({"bme280_read_errors_total",
+           static_cast<float>(bme280ReadErrorsTotal_), "count",
+           "Total number of BME280 read errors."},
+          context);
 }

@@ -5,31 +5,47 @@ namespace {
 
 String cachedBaseLabels;
 
-void appendEscapedLabelValue(String& out, const String& value) {
+void appendEscapedLabelValue(String &out, const String &value) {
   for (size_t i = 0; i < value.length(); ++i) {
     const char c = value[i];
     switch (c) {
-      case '\\': out += "\\\\";break;
-      case '"':  out += "\\\"";break;
-      case '\n': out += "\\n";break;
-      default:   out += c;break;
+    case '\\':
+      out += "\\\\";
+      break;
+    case '"':
+      out += "\\\"";
+      break;
+    case '\n':
+      out += "\\n";
+      break;
+    default:
+      out += c;
+      break;
     }
   }
 }
 
-void appendEscapedLabelValue(String& out, const char* value) {
-  for (const char* p = value; *p != '\0'; ++p) {
+void appendEscapedLabelValue(String &out, const char *value) {
+  for (const char *p = value; *p != '\0'; ++p) {
     const char c = *p;
     switch (c) {
-      case '\\': out += "\\\\"; break;
-      case '"':  out += "\\\""; break;
-      case '\n': out += "\\n"; break;
-      default:   out += c; break;
+    case '\\':
+      out += "\\\\";
+      break;
+    case '"':
+      out += "\\\"";
+      break;
+    case '\n':
+      out += "\\n";
+      break;
+    default:
+      out += c;
+      break;
     }
   }
 }
 
-void buildBaseLabels(String& out) {
+void buildBaseLabels(String &out) {
   out = "device_id=\"";
   appendEscapedLabelValue(out, DeviceIdentity::getEffectiveId());
   out += "\",hardware_id=\"";
@@ -37,19 +53,18 @@ void buildBaseLabels(String& out) {
   out += "\"";
 }
 
-void sensorLabels(String& out, const String &baseLabels, const char *unit) {
+void sensorLabels(String &out, const String &baseLabels, const char *unit) {
   out = baseLabels;
   out += ",unit=\"";
   appendEscapedLabelValue(out, unit);
   out += "\"";
 }
 
-void appendGauge(String& out, const String& labels, const char* name,
-                 const char* help, const char* value) {
-  const size_t extra =
-      8 + strlen(name) + 1 + strlen(help) + 1 +
-      8 + strlen(name) + 7 +
-      strlen(name) + 1 + labels.length() + 2 + strlen(value) + 1;
+void appendGauge(String &out, const String &labels, const char *name,
+                 const char *help, const char *value) {
+  const size_t extra = 8 + strlen(name) + 1 + strlen(help) + 1 + 8 +
+                       strlen(name) + 7 + strlen(name) + 1 + labels.length() +
+                       2 + strlen(value) + 1;
 
   out.reserve(out.length() + extra);
 
@@ -69,36 +84,36 @@ void appendGauge(String& out, const String& labels, const char* name,
   out += '\n';
 }
 
-void appendGauge(String& out, const String& labels, const char* name,
-                 const char* help, const String& value) {
+void appendGauge(String &out, const String &labels, const char *name,
+                 const char *help, const String &value) {
   appendGauge(out, labels, name, help, value.c_str());
 }
 
-void appendGauge(String& out, const String& labels, const char* name,
-                 const char* help, int32_t value) {
+void appendGauge(String &out, const String &labels, const char *name,
+                 const char *help, int32_t value) {
   char buf[16];
   snprintf(buf, sizeof(buf), "%ld", static_cast<long>(value));
   appendGauge(out, labels, name, help, buf);
 }
 
-void appendGauge(String& out, const String& labels, const char* name,
-                 const char* help, uint32_t value) {
+void appendGauge(String &out, const String &labels, const char *name,
+                 const char *help, uint32_t value) {
   char buf[16];
   snprintf(buf, sizeof(buf), "%lu", static_cast<unsigned long>(value));
   appendGauge(out, labels, name, help, buf);
 }
 
-void appendGauge(String& out, const String& labels, const char* name,
-                 const char* help, bool value) {
+void appendGauge(String &out, const String &labels, const char *name,
+                 const char *help, bool value) {
   appendGauge(out, labels, name, help, value ? "1" : "0");
 }
 
-void appendGauge(String& out, const String& labels, const char* name,
-                 const char* help, float value, int decimals = 2) {
+void appendGauge(String &out, const String &labels, const char *name,
+                 const char *help, float value, int decimals = 2) {
   char buf[32];
   dtostrf(value, 0, decimals, buf);
 
-  char* start = buf;
+  char *start = buf;
   while (*start == ' ') {
     ++start;
   }
@@ -106,7 +121,7 @@ void appendGauge(String& out, const String& labels, const char* name,
   appendGauge(out, labels, name, help, start);
 }
 
-void sensorMetricName(String& out, const char *key) {
+void sensorMetricName(String &out, const char *key) {
   out = "esp32_sensor_";
   for (const char *p = key; *p != '\0'; ++p) {
     const char c = *p;
@@ -119,9 +134,9 @@ void sensorMetricName(String& out, const char *key) {
   }
 }
 
-void appendInfoGauge(String& out, const String& labels, const char* name,
-                     const char* help, const char* labelKey,
-                     const String& labelVal) {
+void appendInfoGauge(String &out, const String &labels, const char *name,
+                     const char *help, const char *labelKey,
+                     const String &labelVal) {
   String labeled;
   labeled.reserve(labels.length() + strlen(labelKey) + labelVal.length() + 8);
   labeled = labels;
@@ -136,31 +151,39 @@ void appendInfoGauge(String& out, const String& labels, const char* name,
 
 } // namespace
 
-void initMetricsFormatter() {
-  buildBaseLabels(cachedBaseLabels);
-}
+void initMetricsFormatter() { buildBaseLabels(cachedBaseLabels); }
 
-const String& getBaseLabels() {
+const String &getBaseLabels() {
   if (cachedBaseLabels.isEmpty()) {
     buildBaseLabels(cachedBaseLabels);
   }
   return cachedBaseLabels;
 }
 
-void formatPrometheusMetrics(String& out, const DeviceState &state,
-                               const SensorManager &sensorManager) {
-  //String metrics;
-  out = "";
-  out.reserve(2600);
+void appendSensorMetric(String &out, String &nameBuffer, String &labelsBuffer,
+                        const SensorMetric &metric) {
+  const String &labels = getBaseLabels();
 
-  const String& labels = getBaseLabels();
-  const SensorSnapshot sensors = sensorManager.snapshot();
+  sensorMetricName(nameBuffer, metric.name);
+  sensorLabels(labelsBuffer, labels, metric.unit);
+
+  if (metric.type == SensorMetricValueType::Bool) {
+    appendGauge(out, labelsBuffer, nameBuffer.c_str(), metric.help,
+                metric.value != 0.0f);
+    return;
+  }
+
+  appendGauge(out, labelsBuffer, nameBuffer.c_str(), metric.help, metric.value);
+}
+
+void formatDeviceMetrics(String &out, const DeviceState &state) {
+  const String &labels = getBaseLabels();
 
   appendGauge(out, labels, "esp32_up",
               "Whether the ESP32 application is running.", true);
 
-  appendGauge(out, labels, "esp32_wifi_connected",
-              "Whether WiFi is connected.", state.wifiConnected);
+  appendGauge(out, labels, "esp32_wifi_connected", "Whether WiFi is connected.",
+              state.wifiConnected);
 
   appendGauge(out, labels, "esp32_uptime_seconds",
               "Time since boot in seconds.", state.uptimeSec);
@@ -174,23 +197,4 @@ void formatPrometheusMetrics(String& out, const DeviceState &state,
   appendInfoGauge(out, labels, "esp32_wifi_status_info",
                   "WiFi status as an informational labeled metric.", "status",
                   state.wifiStatus);
-
-  appendGauge(out, labels, "esp32_bme280_available",
-              "Whether the BME280 sensor is available.",
-              sensors.bme280Available);
-
-  appendGauge(out, labels, "esp32_bme280_read_ok",
-              "Whether the last BME280 read succeeded.", sensors.bme280ReadOk);
-  
-  String name;
-  String labeled;
-  name.reserve(64);
-  labeled.reserve(128);
-  sensorManager.walkFields([&out, &labels, &name, &labeled](const char *key, float value,
-                                               const char *unit) {
-    sensorMetricName(name, key);
-    sensorLabels(labeled, labels, unit);
-    appendGauge(out, labeled, name.c_str(), "Sensor measurement.", value);
-  });
-
 }

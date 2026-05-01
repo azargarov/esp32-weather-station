@@ -17,35 +17,47 @@ void setup() {
   delay(1000);
 
   Serial.println();
-  Serial.println("Booting...");
+  Serial.println(F("Booting..."));
 
   sensorManager.begin();
   wifiManager.connect();
   httpServer.begin();
+  httpServer.updateMetricsCache();
 
-  Serial.println("HTTP server started");
+  Serial.println(F("HTTP server started"));
   wifiManager.printNetworkInfoToSerial(true);
 
   Serial.println();
-  Serial.println("=== ESP32 startup info ===");
-  Serial.print("Hardware ID: ");
+  Serial.println(F("=== ESP32 startup info ==="));
+  Serial.print(F("Hardware ID: "));
   Serial.println(DeviceIdentity::getHardwareId());
-  Serial.print("Provisioned ID: ");
+  Serial.print(F("Provisioned ID: "));
   if (DeviceIdentity::hasProvisionedId()) {
     Serial.println(DeviceIdentity::getProvisionedId());
   } else {
-    Serial.println("(not set)");
+    Serial.println(F("(not set)"));
   }
-  Serial.print("Effective ID: ");
+  Serial.print(F("Effective ID: "));
   Serial.println(DeviceIdentity::getEffectiveId());
-  Serial.println("End of booting");
-  Serial.println("=========================");
+  Serial.println(F("End of booting"));
+  Serial.println(F("========================="));
 }
 
 void loop() {
-  sensorManager.update();
   httpServer.handleClient();
+
+  sensorManager.update();
+
+  static uint32_t lastMetricsCacheUpdateMs = 0;
+  const uint32_t now = millis();
+
+  if (now - lastMetricsCacheUpdateMs >= 5000) {
+    lastMetricsCacheUpdateMs = now;
+    httpServer.updateMetricsCache();
+  }
+
   wifiManager.ensureConnected();
   wifiManager.handleSerialInput();
+
   delay(Config::LOOP_DELAY_MS);
 }

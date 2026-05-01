@@ -1,20 +1,14 @@
 #pragma once
 
-#include "data_serialization.h"
 #include "aggregated_metric.h"
+#include "data_serialization.h"
 
+#include "sensor.h"
 #include <Adafruit_BME280.h>
 #include <Arduino.h>
 #include <ArduinoJson.h>
-#include "sensor.h"
 
-
-enum class Bme280Field {
-  Temperature,
-  Humidity,
-  Pressure,
-  Unknown
-};
+enum class Bme280Field { Temperature, Humidity, Pressure, Unknown };
 
 struct Bme280Reading {
   bool valid = false;
@@ -39,7 +33,7 @@ struct Bme280Metrics {
   MetricStats humidity;
   MetricStats pressure;
 
-  void add(const Bme280Reading& reading) {
+  void add(const Bme280Reading &reading) {
     if (!reading.valid) {
       return;
     }
@@ -53,9 +47,7 @@ struct Bme280Metrics {
     return temperature.hasValue() || humidity.hasValue() || pressure.hasValue();
   }
 
-  uint32_t sampleCount() const {
-    return temperature.count();
-  }
+  uint32_t sampleCount() const { return temperature.count(); }
 
   void reset() {
     temperature.reset();
@@ -83,9 +75,9 @@ public:
   void setTemperatureOffset(float offset);
   void setHumidityOffset(float offset);
   void setPressureOffset(float offset);
-  Bme280Field parseBme280Field(const char* field);
+  Bme280Field parseBme280Field(const char *field);
   bool setCalibrationFromReference(Bme280Field f, float reference);
-  bool getCalibration(JsonDocument & doc) const;
+  bool getCalibration(JsonDocument &doc) const;
 
 private:
   Adafruit_BME280 driver_;
@@ -98,4 +90,3 @@ private:
   bool lastReadOk_ = false;
   uint32_t lastReadMs_ = 0;
 };
-

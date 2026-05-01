@@ -3,12 +3,7 @@
 
 namespace {
 
-enum class ParseBodyResult {
-  Ok,
-  MissingBody,
-  InvalidJson
-};
-
+enum class ParseBodyResult { Ok, MissingBody, InvalidJson };
 
 void sendJson(WebServer &server, int statusCode, const JsonDocument &doc) {
   String body;
@@ -37,12 +32,12 @@ ParseBodyResult parseRequestBody(WebServer &server, JsonDocument &doc) {
 
 const char *parseBodyResultToError(ParseBodyResult pb) {
   switch (pb) {
-    case ParseBodyResult::MissingBody:
-      return "missing_body";
-    case ParseBodyResult::InvalidJson:
-      return "invalid_json";
-    case ParseBodyResult::Ok:
-      return nullptr;
+  case ParseBodyResult::MissingBody:
+    return "missing_body";
+  case ParseBodyResult::InvalidJson:
+    return "invalid_json";
+  case ParseBodyResult::Ok:
+    return nullptr;
   }
   return "unknown_error";
 }
@@ -74,7 +69,7 @@ void HttpServer::registerRoutes() {
   server_.onNotFound([this]() { handleDynamicCalibrationRoute(); });
 }
 
-void HttpServer::handleGetCalibration(SensorType st){
+void HttpServer::handleGetCalibration(SensorType st) {
   JsonDocument doc;
 
   if (!sensorManager_.getCalibration(st, doc)) {
@@ -119,9 +114,9 @@ void HttpServer::handleDynamicCalibrationRoute() {
   sendJsonError(server_, 405, "method_not_allowed");
 }
 
-void HttpServer::processSetCalibration(SensorType st, const char * field) {
+void HttpServer::processSetCalibration(SensorType st, const char *field) {
   JsonDocument doc;
-  
+
   ParseBodyResult result = parseRequestBody(server_, doc);
   const char *error = parseBodyResultToError(result);
   if (error) {
@@ -135,12 +130,12 @@ void HttpServer::processSetCalibration(SensorType st, const char * field) {
   }
 
   float reference = doc["reference"].as<float>();
-  
-  if ( ! sensorManager_.setCalibration(st, field, reference) ){
+
+  if (!sensorManager_.setCalibration(st, field, reference)) {
     sendJsonError(server_, 400, "bad_request");
     return;
   }
-  
+
   JsonDocument response;
 
   if (!sensorManager_.getCalibration(st, response)) {
@@ -150,7 +145,6 @@ void HttpServer::processSetCalibration(SensorType st, const char * field) {
 
   sendJson(server_, 200, response);
 }
-
 
 void HttpServer::handleRoot() {
   String body = deviceService_.getTextStatus();
@@ -166,9 +160,7 @@ void HttpServer::handleJson() {
 void HttpServer::handleHealthz() { server_.send(200, "text/plain", "OK\n"); }
 
 void HttpServer::handleMetrics() {
-  String metrics;
-  deviceService_.getMetrics(metrics);
-  server_.send(200, "text/plain; version=0.0.4", metrics);
+  server_.send(200, "text/plain; version=0.0.4", deviceService_.getMetrics());
 }
 
 void HttpServer::handleDeviceInfo() {
@@ -246,12 +238,14 @@ void HttpServer::handleClient() {
   deviceService_.handlePendingReboot();
 }
 
-bool HttpServer::extractCalibrationPath(const String& uri, String& sensor, String& field) {
+bool HttpServer::extractCalibrationPath(const String &uri, String &sensor,
+                                        String &field) {
 
   const size_t prefixLen = strlen(kCalibrationPrefix);
   const size_t suffixLen = strlen(kCalibrationSuffix);
 
-  if (!uri.startsWith(kCalibrationPrefix) || !uri.endsWith(kCalibrationSuffix)) {
+  if (!uri.startsWith(kCalibrationPrefix) ||
+      !uri.endsWith(kCalibrationSuffix)) {
     return false;
   }
 
@@ -268,12 +262,14 @@ bool HttpServer::extractCalibrationPath(const String& uri, String& sensor, Strin
   return sensor.length() > 0 && field.length() > 0;
 }
 
-bool HttpServer::extractSensorCalibrationPath(const String& uri, String& sensor) {
+bool HttpServer::extractSensorCalibrationPath(const String &uri,
+                                              String &sensor) {
 
   const size_t prefixLen = strlen(kCalibrationPrefix);
   const size_t suffixLen = strlen(kCalibrationSuffix);
 
-  if (!uri.startsWith(kCalibrationPrefix) || !uri.endsWith(kCalibrationSuffix)) {
+  if (!uri.startsWith(kCalibrationPrefix) ||
+      !uri.endsWith(kCalibrationSuffix)) {
     return false;
   }
 
@@ -286,3 +282,5 @@ bool HttpServer::extractSensorCalibrationPath(const String& uri, String& sensor)
   sensor = middle;
   return sensor.length() > 0;
 }
+
+void HttpServer::updateMetricsCache() { deviceService_.updateMetricsCache(); }
