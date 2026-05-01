@@ -51,7 +51,8 @@ void loop() {
   static uint32_t lastMetricsCacheUpdateMs = 0;
   const uint32_t now = millis();
 
-  if (now - lastMetricsCacheUpdateMs >= 5000) {
+  if (now - lastMetricsCacheUpdateMs >=
+      Config::METRICS_CACHE_UPDATE_INTERVAL_MS) {
     lastMetricsCacheUpdateMs = now;
     httpServer.updateMetricsCache();
   }

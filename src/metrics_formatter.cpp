@@ -198,3 +198,19 @@ void formatDeviceMetrics(String &out, const DeviceState &state) {
                   "WiFi status as an informational labeled metric.", "status",
                   state.wifiStatus);
 }
+
+void formatDeviceMetrics(String &out, const DeviceState &state,
+                         uint32_t metricsBuildDurationMs,
+                         uint32_t metricsLastBuildUptimeSeconds) {
+  const String &labels = getBaseLabels();
+
+  formatDeviceMetrics(out, state);
+
+  appendGauge(out, labels, "esp32_metrics_build_duration_ms",
+              "Time spent rebuilding the cached Prometheus metrics.",
+              metricsBuildDurationMs);
+
+  appendGauge(out, labels, "esp32_metrics_last_build_uptime_seconds",
+              "Device uptime when cached Prometheus metrics were last rebuilt.",
+              metricsLastBuildUptimeSeconds);
+}

@@ -36,6 +36,8 @@ private:
 
   bool rebootRequested_ = false;
   uint32_t rebootAtMs_ = 0;
+  uint32_t metricsBuildDurationMs_ = 0;
+  uint32_t metricsLastBuildUptimeSeconds_ = 0;
 
   String cachedMetrics_;
   String metricNameBuffer_;

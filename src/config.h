@@ -16,5 +16,6 @@ constexpr uint32_t WIFI_RECONNECT_INTERVAL_MS = 10000;
 constexpr bool BME280_ENABLED = true;
 constexpr uint8_t BME280_I2C_ADDRESS = 0x76; //  0x77
 constexpr uint32_t SENSOR_READ_INTERVAL_MS = 5000;
+constexpr uint32_t METRICS_CACHE_UPDATE_INTERVAL_MS = 5000;
 constexpr uint32_t SENSOR_PROBE_INTERVAL_MS = 60000;
 } // namespace Config

@@ -123,17 +123,23 @@ DeviceService::DeviceService(SensorManager &sensorManager)
 const String &DeviceService::getMetrics() const { return cachedMetrics_; }
 
 void DeviceService::updateMetricsCache() {
+  const uint32_t startMs = millis();
+
   DeviceState state;
   collectDeviceState(state);
 
   cachedMetrics_ = "";
 
-  formatDeviceMetrics(cachedMetrics_, state);
+  formatDeviceMetrics(cachedMetrics_, state, metricsBuildDurationMs_,
+                      metricsLastBuildUptimeSeconds_);
 
   SensorMetricFormatContext ctx{&cachedMetrics_, &metricNameBuffer_,
                                 &metricLabelsBuffer_};
 
   sensorManager_.walkMetrics(appendSensorMetricCallback, &ctx);
+
+  metricsBuildDurationMs_ = millis() - startMs;
+  metricsLastBuildUptimeSeconds_ = millis() / 1000;
 }
 
 String DeviceService::getTextStatus() {
