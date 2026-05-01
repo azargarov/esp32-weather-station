@@ -17,7 +17,7 @@ const char *SensorManager::sensorTypeToString(SensorType st) {
   case SensorType::Bme280:
     return "bme280";
   default:
-    return "unknown";
+    return "unknown_sensor";
   }
 }
 
@@ -116,11 +116,8 @@ bool SensorManager::setCalibration(SensorType st, const char *field,
   if (st == SensorType::Bme280) {
     return bme280_.setCalibrationFromReference(bme280_.parseBme280Field(field),
                                                reference);
-  } else {
-    return false;
   }
-
-  return true;
+  return false;
 }
 
 bool SensorManager::getCalibration(SensorType st, JsonDocument &doc) {

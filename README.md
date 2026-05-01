@@ -4,6 +4,8 @@ ESP32 Sensor Node is a small firmware project for an ESP32-based environmental s
 
 The project is designed as a lightweight homelab observability node: each ESP32 can be provisioned with a stable device ID and hostname, discovered through mDNS, scraped by Prometheus, and visualized in Grafana.
 
+The node is designed to behave like a small, self-contained observability exporter.
+
 ## Features
 
 - ESP32 WiFi connection with reconnect handling.
@@ -507,6 +509,40 @@ Expected response:
 
 The reboot is delayed briefly so the HTTP response can be sent before `ESP.restart()` is called.
 
+
+### Sensor calibration (BME280)
+
+Get current calibration:
+
+```bash
+curl http://192.168.1.233/api/sensors/bme280/calibration | jq
+```
+Calibrate using a reference measurement:
+
+```bash
+curl -X POST http://<device IP>/api/sensors/bme280/temperature/calibration \
+  -H "Content-Type: application/json" \
+  -d '{"reference": 22.7}'
+```
+
+#### Note
+The device calculates:
+```text
+  offset = reference - raw
+  corrected = raw + offset
+```
+
+Sensor and field names are currently case-sensitive.
+
+Supported sensor names:
+- `bme280`
+
+Supported BME280 calibration fields:
+- `temperature`
+- `humidity`
+- `pressure`
+
+
 ## Prometheus metrics
 
 Metrics are exposed at:
@@ -527,11 +563,11 @@ Current metrics include:
 | `esp32_heap_free_bytes` | Free heap memory. |
 | `esp32_wifi_rssi_dbm` | WiFi signal strength. |
 | `esp32_wifi_status_info` | WiFi status as a labeled info metric. |
-| `esp32_bme280_available` | Whether the BME280 sensor was detected. |
-| `esp32_bme280_read_ok` | Whether the last BME280 read succeeded. |
-| `esp32_sensor_temperature` | Temperature from the BME280 sensor. |
-| `esp32_sensor_humidity` | Humidity from the BME280 sensor. |
-| `esp32_sensor_pressure` | Pressure from the BME280 sensor. |
+| `esp32_sensor_bme280_available` | Whether the BME280 sensor was detected. |
+| `esp32_sensor_bme280_read_ok` | Whether the last BME280 read succeeded. |
+| `esp32_sensor_temperature_avg_60s` | Temperature from the BME280 sensor. |
+| `esp32_sensor_humidity_avg_60s` | Humidity from the BME280 sensor. |
+| `esp32_sensor_pressure_avg_60s` | Pressure from the BME280 sensor. |
 
 Device identity labels are added directly by the firmware:
 
@@ -545,6 +581,29 @@ Sensor metrics also include a unit label:
 unit="celsius"
 unit="percent"
 unit="hpa"
+```
+### Metrics caching
+
+To reduce response latency and heap pressure, the `/metrics` endpoint serves a cached response.
+
+- Metrics are rebuilt periodically in the main loop.
+- The update interval is configurable via:
+
+```cpp
+constexpr uint32_t METRICS_CACHE_UPDATE_INTERVAL_MS = 5000;
+```
+
+### Additional diagnostic metrics are exposed:
+
+| Metric | Description |
+|---|---|
+| `esp32_metrics_build_duration_ms` | Time spent rebuilding the metrics snapshot. |
+| `esp32_metrics_last_build_uptime_seconds` | Device uptime when the last rebuild occurred. |
+
+You can derive cache age in Prometheus:
+
+```promql
+esp32_uptime_seconds - esp32_metrics_last_build_uptime_seconds
 ```
 
 ## Prometheus scrape example
