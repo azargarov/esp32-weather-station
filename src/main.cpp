@@ -9,7 +9,6 @@
 namespace{
   WiFiManager wifiManager;
   SensorManager sensorManager;
-  //DeviceService* deviceService = nullptr;
   HttpServer* httpServer = nullptr;
 }
 
@@ -31,7 +30,6 @@ void setup() {
   static DeviceService deviceServiceInstance(sensorManager, bootInfo);
   static HttpServer httpServerInstance(deviceServiceInstance, sensorManager, 80);
 
- // deviceService = &deviceServiceInstance;
   httpServer = &httpServerInstance;
 
   sensorManager.begin();
