@@ -112,9 +112,8 @@ void fillHostnameResponse(JsonDocument &doc) {
 
 } // namespace
 
-DeviceService::DeviceService(SensorManager &sensorManager)
-    : sensorManager_(sensorManager) {
-
+DeviceService::DeviceService(SensorManager& sensorManager, BootInfo bootInfo)
+      : sensorManager_(sensorManager), bootInfo_(bootInfo) {
   cachedMetrics_.reserve(2600);
   metricNameBuffer_.reserve(64);
   metricLabelsBuffer_.reserve(128);
@@ -195,6 +194,8 @@ void DeviceService::getDeviceInfo(JsonDocument &doc) {
 
   fillIdentityJson(doc);
   doc["ip"] = state.wifiConnected ? state.ip : "n/a";
+  doc["reset_reason"] = resetReasonToString(bootInfo_.resetReason);
+  doc["reset_reason_code"] = static_cast<int>(bootInfo_.resetReason);
 }
 
 DeviceService::Result DeviceService::provisionDevice(const String &newId,

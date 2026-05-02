@@ -4,8 +4,14 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <stdint.h>
+#include <esp_system.h>
 
 #include "sensors/sensor_manager.h"
+
+struct BootInfo {
+  esp_reset_reason_t resetReason;
+
+};
 
 class DeviceService {
 public:
@@ -14,8 +20,7 @@ public:
     uint16_t statusCode;
     const char *error;
   };
-
-  explicit DeviceService(SensorManager &sensorManager);
+  DeviceService(SensorManager& sensorManager, BootInfo bootInfo);
 
   void updateMetricsCache();
   const String &getMetrics() const;
@@ -33,6 +38,7 @@ public:
 
 private:
   SensorManager &sensorManager_;
+  const BootInfo bootInfo_;
 
   bool rebootRequested_ = false;
   uint32_t rebootAtMs_ = 0;

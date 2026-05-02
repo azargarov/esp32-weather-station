@@ -44,14 +44,13 @@ const char *parseBodyResultToError(ParseBodyResult pb) {
 
 } // namespace
 
-HttpServer::HttpServer(SensorManager &sensorManager, uint16_t port)
-    : server_(port), sensorManager_(sensorManager),
-      deviceService_(sensorManager) {}
-
 void HttpServer::begin() {
   registerRoutes();
   server_.begin();
 }
+
+HttpServer::HttpServer(DeviceService &deviceService, SensorManager &sensorManager, uint16_t port)
+    : server_(port), sensorManager_(sensorManager), deviceService_(deviceService) {}
 
 void HttpServer::registerRoutes() {
   server_.on("/", [this]() { handleRoot(); });

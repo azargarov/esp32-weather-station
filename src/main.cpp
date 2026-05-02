@@ -3,11 +3,14 @@
 #include "http_server.h"
 #include "sensors/sensor_manager.h"
 #include "wifi_manager.h"
+#include "device_state.h"
 #include <Arduino.h>
 
 WiFiManager wifiManager;
 SensorManager sensorManager;
-HttpServer httpServer(sensorManager, 80);
+BootInfo bootInfo{readResetReason()};
+DeviceService deviceService(sensorManager,bootInfo);
+HttpServer httpServer(deviceService, sensorManager, 80);
 
 void setup() {
   DeviceIdentity::begin();
@@ -19,12 +22,15 @@ void setup() {
   Serial.println();
   Serial.println(F("Booting..."));
 
+  Serial.print(F("[boot] reset reason: "));
+  Serial.println(resetReasonToString(bootInfo.resetReason));
+
   sensorManager.begin();
   wifiManager.connect();
   httpServer.begin();
   httpServer.updateMetricsCache();
 
-  Serial.println(F("HTTP server started"));
+  Serial.println(F("[boot] HTTP server started"));
   wifiManager.printNetworkInfoToSerial(true);
 
   Serial.println();

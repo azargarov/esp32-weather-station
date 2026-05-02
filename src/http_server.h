@@ -7,7 +7,7 @@
 
 class HttpServer {
 public:
-  HttpServer(SensorManager &sensorManager, uint16_t port = 80);
+  HttpServer(DeviceService &deviceService, SensorManager &sensorManager, uint16_t port = 80);
   void begin();
   void handleClient();
   void updateMetricsCache();
@@ -16,12 +16,9 @@ private:
   static constexpr const char *kCalibrationPrefix = "/api/sensors/";
   static constexpr const char *kCalibrationSuffix = "/calibration";
 
-  // static constexpr uint32_t kRebootDelayMs = 500;
-  // static constexpr uint32_t kRebootFinalDelayMs = 50;
-
   WebServer server_;
   SensorManager &sensorManager_;
-  DeviceService deviceService_;
+  DeviceService &deviceService_;
 
   void registerRoutes();
   void handleRoot();
