@@ -6,11 +6,12 @@
 #include "device_state.h"
 #include <Arduino.h>
 
-WiFiManager wifiManager;
-SensorManager sensorManager;
-BootInfo bootInfo{readResetReason()};
-DeviceService deviceService(sensorManager,bootInfo);
-HttpServer httpServer(deviceService, sensorManager, 80);
+namespace{
+  WiFiManager wifiManager;
+  SensorManager sensorManager;
+  //DeviceService* deviceService = nullptr;
+  HttpServer* httpServer = nullptr;
+}
 
 void setup() {
   DeviceIdentity::begin();
@@ -22,13 +23,22 @@ void setup() {
   Serial.println();
   Serial.println(F("Booting..."));
 
+  BootInfo bootInfo{readResetReason()};
+
   Serial.print(F("[boot] reset reason: "));
   Serial.println(resetReasonToString(bootInfo.resetReason));
 
+  static DeviceService deviceServiceInstance(sensorManager, bootInfo);
+  static HttpServer httpServerInstance(deviceServiceInstance, sensorManager, 80);
+
+ // deviceService = &deviceServiceInstance;
+  httpServer = &httpServerInstance;
+
   sensorManager.begin();
   wifiManager.connect();
-  httpServer.begin();
-  httpServer.updateMetricsCache();
+
+  httpServer->begin();
+  httpServer->updateMetricsCache();
 
   Serial.println(F("[boot] HTTP server started"));
   wifiManager.printNetworkInfoToSerial(true);
@@ -50,21 +60,20 @@ void setup() {
 }
 
 void loop() {
-  httpServer.handleClient();
-
-  sensorManager.update();
-
-  static uint32_t lastMetricsCacheUpdateMs = 0;
-  const uint32_t now = millis();
-
-  if (now - lastMetricsCacheUpdateMs >=
-      Config::METRICS_CACHE_UPDATE_INTERVAL_MS) {
-    lastMetricsCacheUpdateMs = now;
-    httpServer.updateMetricsCache();
-  }
-
   wifiManager.ensureConnected();
   wifiManager.handleSerialInput();
 
+  sensorManager.update();
+  
+  static uint32_t lastMetricsCacheUpdateMs = 0;
+  const uint32_t now = millis();
+  
+  if (now - lastMetricsCacheUpdateMs >=
+    Config::METRICS_CACHE_UPDATE_INTERVAL_MS) {
+      lastMetricsCacheUpdateMs = now;
+      httpServer->updateMetricsCache();
+  }
+  
+  httpServer->handleClient();
   delay(Config::LOOP_DELAY_MS);
 }
