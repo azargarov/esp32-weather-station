@@ -16,6 +16,8 @@ private:
   static constexpr const char *kCalibrationPrefix = "/api/sensors/";
   static constexpr const char *kCalibrationSuffix = "/calibration";
 
+  void handlePing();
+
   WebServer server_;
   SensorManager &sensorManager_;
   DeviceService &deviceService_;

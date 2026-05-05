@@ -11,7 +11,8 @@ void WiFiManager::connect() {
   Serial.println(Config::WIFI_SSID);
 
   WiFi.mode(WIFI_STA);
-
+  WiFi.setSleep(false);
+  
   String hostname = DeviceIdentity::getEffectiveHostname();
 
   Serial.print(F("[wifi] applying hostname: "));

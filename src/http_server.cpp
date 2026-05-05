@@ -49,6 +49,10 @@ void HttpServer::begin() {
   server_.begin();
 }
 
+void HttpServer::handlePing() {
+  server_.send(200, "text/plain", "ok");
+}
+
 HttpServer::HttpServer(DeviceService &deviceService, SensorManager &sensorManager, uint16_t port)
     : server_(port), sensorManager_(sensorManager), deviceService_(deviceService) {}
 
@@ -57,6 +61,8 @@ void HttpServer::registerRoutes() {
   server_.on("/healthz", [this]() { handleHealthz(); });
   server_.on("/json", [this]() { handleJson(); });
   server_.on("/metrics", [this]() { handleMetrics(); });
+
+  server_.on("/ping", HTTP_GET, [this]() { handlePing(); });
 
   server_.on("/api/device/info", [this]() { handleDeviceInfo(); });
   server_.on("/api/device/provision", HTTP_POST,
