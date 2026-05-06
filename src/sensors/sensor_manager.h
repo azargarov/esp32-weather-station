@@ -14,45 +14,83 @@ enum class SensorMetricType {
   Counter,
   Info
 };
-
 struct SensorMetric {
-  const char *name = nullptr;
-  const char *family = nullptr;
-  
-  SensorType sensor = SensorType::Unknown;
-  SensorField field = SensorField::Unknown;
-  SensorMetricType type = SensorMetricType::Gauge;
-
+  const char *name = nullptr;    // old style, e.g. "bme280_available"
   float value = 0.0f;
   const char *unit = nullptr;
   const char *help = nullptr;
+  SensorMetricType type = SensorMetricType::Gauge;
 
-  SensorMetric() = default;
+  const char *family = nullptr;  // new style, e.g. "mean_60s"
+  SensorType sensor = SensorType::Unknown;
+  SensorField field = SensorField::Unknown;
 
-  SensorMetric(const char *metricName, float metricValue,
-               const char *metricUnit, const char *metricHelp)
-      : name(metricName), value(metricValue), unit(metricUnit),
-        help(metricHelp), type(SensorMetricType::Gauge) {}
-
+  // old style
   SensorMetric(const char *metricName, float metricValue,
                const char *metricUnit, const char *metricHelp,
-               SensorMetricType metricType)
-      : name(metricName), value(metricValue), unit(metricUnit),
-        help(metricHelp), type(metricType) {}
-        
+               SensorMetricType metricType = SensorMetricType::Gauge)
+      : name(metricName),
+        value(metricValue),
+        unit(metricUnit),
+        help(metricHelp),
+        type(metricType),
+        family(nullptr),
+        sensor(SensorType::Unknown),
+        field(SensorField::Unknown) {}
+
+  // new generic family + labels style
   SensorMetric(const char *metricFamily, SensorType metricSensor,
                SensorField metricField, float metricValue,
                const char *metricUnit, const char *metricHelp,
                SensorMetricType metricType = SensorMetricType::Gauge)
       : name(nullptr),
-        family(metricFamily),
-        sensor(metricSensor),
-        field(metricField),
         value(metricValue),
         unit(metricUnit),
         help(metricHelp),
-        type(metricType) {}
+        type(metricType),
+        family(metricFamily),
+        sensor(metricSensor),
+        field(metricField) {}
 };
+
+//struct SensorMetric {
+//  const char *name = nullptr;
+//  const char *family = nullptr;
+//  
+//  SensorType sensor = SensorType::Unknown;
+//  SensorField field = SensorField::Unknown;
+//  SensorMetricType type = SensorMetricType::Gauge;
+//
+//  float value = 0.0f;
+//  const char *unit = nullptr;
+//  const char *help = nullptr;
+//
+//  SensorMetric() = default;
+//
+//  SensorMetric(const char *metricName, float metricValue,
+//               const char *metricUnit, const char *metricHelp)
+//      : name(metricName), value(metricValue), unit(metricUnit),
+//        help(metricHelp), type(SensorMetricType::Gauge) {}
+//
+//  SensorMetric(const char *metricName, float metricValue,
+//               const char *metricUnit, const char *metricHelp,
+//               SensorMetricType metricType)
+//      : name(metricName), value(metricValue), unit(metricUnit),
+//        help(metricHelp), type(metricType) {}
+//        
+//  SensorMetric(const char *metricFamily, SensorType metricSensor,
+//               SensorField metricField, float metricValue,
+//               const char *metricUnit, const char *metricHelp,
+//               SensorMetricType metricType = SensorMetricType::Gauge)
+//      : name(nullptr),
+//        family(metricFamily),
+//        sensor(metricSensor),
+//        field(metricField),
+//        value(metricValue),
+//        unit(metricUnit),
+//        help(metricHelp),
+//        type(metricType) {}
+//};
 
 using SensorMetricVisitor = void (*)(const SensorMetric &metric, void *context);
 

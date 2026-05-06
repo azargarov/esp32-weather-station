@@ -7,44 +7,59 @@
 namespace {
 
 void appendStatMetric(SensorMetricVisitor visitor, void *context,
-                      const char *field, const char *stat, float value,
+                      SensorType sensor, SensorField field,
+                      const char *family, float value,
                       const char *unit, const char *help) {
   if (!isfinite(value)) {
     return;
   }
 
-  char name[64];
-  snprintf(name, sizeof(name), "%s_%s_60s", field, stat);
-  visitor({name, value, unit, help}, context);
+  visitor({family, sensor, field, value, unit, help, SensorMetricType::Gauge},
+          context);
 }
 
 void walkFieldStats(SensorMetricVisitor visitor, void *context,
-                    const char *field, const char *unit,
+                    SensorType sensor, SensorField field,
                     const MetricStats &stats) {
   if (!stats.hasValue()) {
     return;
   }
 
-  appendStatMetric(visitor, context, field, "mean", stats.average(), unit,
+  const char *unit = sensorFieldUnit(field);
+
+  appendStatMetric(visitor, context, sensor, field, "mean_60s",
+                   stats.average(), unit,
                    "Mean value over the last 60-second rolling window.");
-  appendStatMetric(visitor, context, field, "median", stats.median(), unit,
+
+  appendStatMetric(visitor, context, sensor, field, "median_60s",
+                   stats.median(), unit,
                    "Median value over the last 60-second rolling window.");
-  appendStatMetric(visitor, context, field, "min", stats.min(), unit,
+
+  appendStatMetric(visitor, context, sensor, field, "min_60s",
+                   stats.min(), unit,
                    "Minimum value over the last 60-second rolling window.");
-  appendStatMetric(visitor, context, field, "max", stats.max(), unit,
+
+  appendStatMetric(visitor, context, sensor, field, "max_60s",
+                   stats.max(), unit,
                    "Maximum value over the last 60-second rolling window.");
-  appendStatMetric(visitor, context, field, "range", stats.range(), unit,
+
+  appendStatMetric(visitor, context, sensor, field, "range_60s",
+                   stats.range(), unit,
                    "Range over the last 60-second rolling window.");
-  appendStatMetric(visitor, context, field, "stddev", stats.stddev(), unit,
+
+  appendStatMetric(visitor, context, sensor, field, "stddev_60s",
+                   stats.stddev(), unit,
                    "Standard deviation over the last 60-second rolling window.");
-  appendStatMetric(visitor, context, field, "slope_per_minute",
+
+  appendStatMetric(visitor, context, sensor, field, "slope_per_minute_60s",
                    stats.slopePerMinute(), unit,
                    "Linear regression slope over the rolling window, expressed per minute.");
 
-  char samplesName[64];
-  snprintf(samplesName, sizeof(samplesName), "%s_samples_60s", field);
-  visitor({samplesName, static_cast<float>(stats.count()), "count",
-           "Number of valid samples in the rolling statistics window."},
+  visitor({"samples_60s", sensor, field,
+           static_cast<float>(stats.count()),
+           nullptr,
+           "Number of valid samples in the rolling statistics window.",
+           SensorMetricType::Gauge},
           context);
 }
 
@@ -238,6 +253,11 @@ float SensorManager::latestRawValue(SensorType sensor, SensorField field) const 
 bool SensorManager::setCalibration(SensorType st, const char *field,
                                    float reference) {
   const SensorField sensorField = parseSensorField(field);
+
+  if (sensorField == SensorField::Unknown) {
+    return false;
+  }
+
   const float raw = latestRawValue(st, sensorField);
 
   if (!isfinite(raw)) {
@@ -273,11 +293,16 @@ void SensorManager::walkMetrics(SensorMetricVisitor visitor,
            SensorMetricType::Counter},
           context);
 
-  walkFieldStats(visitor, context, "temperature", "celsius",
+  walkFieldStats(visitor, context,
+                 SensorType::Bme280, SensorField::Temperature,
                  bme280Metrics_.temperature);
-  walkFieldStats(visitor, context, "humidity", "percent",
+
+  walkFieldStats(visitor, context,
+                 SensorType::Bme280, SensorField::Humidity,
                  bme280Metrics_.humidity);
-  walkFieldStats(visitor, context, "pressure", "hpa",
+
+  walkFieldStats(visitor, context,
+                 SensorType::Bme280, SensorField::Pressure,
                  bme280Metrics_.pressure);
 
   walkCalibrationMetric(visitor, context,
@@ -294,13 +319,4 @@ void SensorManager::walkMetrics(SensorMetricVisitor visitor,
                       SensorType::Bme280, SensorField::Pressure,
                       "hpa",
                       calibration_.getProfile({SensorType::Bme280, SensorField::Pressure}));
-  //walkCalibrationMetric(
-  //    visitor, context, "temperature", "celsius",
-  //    calibration_.getProfile({SensorType::Bme280, SensorField::Temperature}));
-  //walkCalibrationMetric(
-  //    visitor, context, "humidity", "percent",
-  //    calibration_.getProfile({SensorType::Bme280, SensorField::Humidity}));
-  //walkCalibrationMetric(
-  //    visitor, context, "pressure", "hpa",
-  //    calibration_.getProfile({SensorType::Bme280, SensorField::Pressure}));
 }
