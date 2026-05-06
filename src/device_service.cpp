@@ -13,12 +13,17 @@ struct SensorMetricFormatContext {
   String *out;
   String *nameBuffer;
   String *labelsBuffer;
+  MetricHeaderRegistry *registry;
 };
 
 void appendSensorMetricCallback(const SensorMetric &metric, void *context) {
   auto *ctx = static_cast<SensorMetricFormatContext *>(context);
 
-  appendSensorMetric(*ctx->out, *ctx->nameBuffer, *ctx->labelsBuffer, metric);
+  appendSensorMetric(*ctx->out,
+                     *ctx->nameBuffer,
+                     *ctx->labelsBuffer,
+                     *ctx->registry,
+                     metric);
 }
 
 void fillIdentityJson(JsonDocument &doc) {
@@ -124,6 +129,10 @@ const String &DeviceService::getMetrics() const { return cachedMetrics_; }
 void DeviceService::updateMetricsCache() {
   const uint32_t startMs = millis();
 
+  String nameBuffer;
+  String labelsBuffer;
+  MetricHeaderRegistry registry;
+
   DeviceState state;
   collectDeviceState(state);
 
@@ -132,8 +141,12 @@ void DeviceService::updateMetricsCache() {
   formatDeviceMetrics(cachedMetrics_, state, metricsBuildDurationMs_,
                       metricsLastBuildUptimeSeconds_);
 
-  SensorMetricFormatContext ctx{&cachedMetrics_, &metricNameBuffer_,
-                                &metricLabelsBuffer_};
+  SensorMetricFormatContext ctx{
+      &cachedMetrics_,
+      &nameBuffer,
+      &labelsBuffer,
+      &registry
+  };
 
   sensorManager_.walkMetrics(appendSensorMetricCallback, &ctx);
 

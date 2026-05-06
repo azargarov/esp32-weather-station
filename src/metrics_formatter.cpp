@@ -5,7 +5,6 @@ namespace {
 
 String cachedBaseLabels;
 
-
 void appendEscapedLabelValue(String &out, const char *value) {
   for (const char *p = value; *p != '\0'; ++p) {
     const char c = *p;
@@ -66,26 +65,7 @@ void sensorMetricLabels(String &out, const String &baseLabels,
   }
 }
 
-struct MetricHeaderRegistry {
-  static constexpr size_t kMaxNames = 32;
-  String names[kMaxNames];
-  size_t count = 0;
 
-  bool contains(const String &name) const {
-    for (size_t i = 0; i < count; ++i) {
-      if (names[i] == name) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  void add(const String &name) {
-    if (count < kMaxNames) {
-      names[count++] = name;
-    }
-  }
-};
 
 void appendMetricHeader(String &out, const char *name, const char *help,
                         const char *type) {
@@ -344,47 +324,6 @@ const String &getBaseLabels() {
   return cachedBaseLabels;
 }
 
-void appendSensorMetric(String &out, String &nameBuffer, String &labelsBuffer,
-                        const SensorMetric &metric) {
-  const String &baseLabels = getBaseLabels();
-
-  if (metric.family != nullptr) {
-    sensorMetricName(nameBuffer, metric.family);
-    sensorMetricLabels(labelsBuffer, baseLabels, metric.sensor, metric.field, metric.unit);
-  } else {
-    sensorMetricName(nameBuffer, metric.name);
-    sensorLabels(labelsBuffer, baseLabels, metric.unit ? metric.unit : "");
-  }
-
-  if (metric.type == SensorMetricType::Counter) {
-    appendCounter(out, labelsBuffer, nameBuffer.c_str(), metric.help, metric.value);
-    return;
-  }
-
-  appendGauge(out, labelsBuffer, nameBuffer.c_str(), metric.help, metric.value);
-}
-
-//void appendSensorMetric(String &out, String &nameBuffer, String &labelsBuffer,
-//                        const SensorMetric &metric) {
-//  const String &labels = getBaseLabels();
-//
-//  sensorMetricName(nameBuffer, metric.name);
-//  sensorLabels(labelsBuffer, labels, metric.unit);
-//
-//  //if (metric.type == SensorMetricType::) {
-//  //  appendGauge(out, labelsBuffer, nameBuffer.c_str(), metric.help,
-//  //              metric.value != 0.0f);
-//  //  return;
-//  //}
-//
-//  if (metric.type == SensorMetricType::Counter) {
-//    appendCounter(out, labelsBuffer, nameBuffer.c_str(), metric.help, metric.value);
-//    return;
-//  }
-//
-//  appendGauge(out, labelsBuffer, nameBuffer.c_str(), metric.help, metric.value);
-//}
-
 void formatDeviceMetrics(String &out, const DeviceState &state) {
   const String &labels = getBaseLabels();
 
@@ -424,4 +363,33 @@ void formatDeviceMetrics(String &out, const DeviceState &state,
               metricsLastBuildUptimeSeconds);
 }
 
+void appendSensorMetric(String &out, String &nameBuffer, String &labelsBuffer,
+                        MetricHeaderRegistry &registry,
+                        const SensorMetric &metric) {
+  const String &baseLabels = getBaseLabels();
+
+  if (metric.family != nullptr) {
+    sensorMetricName(nameBuffer, metric.family);
+    sensorMetricLabels(labelsBuffer, baseLabels,
+                       metric.sensor, metric.field, metric.unit);
+  } else {
+    sensorMetricName(nameBuffer, metric.name);
+    sensorLabels(labelsBuffer, baseLabels, metric.unit ? metric.unit : "");
+  }
+
+  const char *typeStr =
+      (metric.type == SensorMetricType::Counter) ? "counter" : "gauge";
+
+  if (!registry.contains(nameBuffer)) {
+    appendMetricHeader(out, nameBuffer.c_str(), metric.help, typeStr);
+    registry.add(nameBuffer);
+  }
+
+  if (metric.type == SensorMetricType::Counter) {
+    appendCounterSample(out, nameBuffer.c_str(), labelsBuffer, metric.value);
+    return;
+  }
+
+  appendGaugeSample(out, nameBuffer.c_str(), labelsBuffer, metric.value);
+}
 
