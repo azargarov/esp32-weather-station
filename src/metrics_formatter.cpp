@@ -65,8 +65,6 @@ void sensorMetricLabels(String &out, const String &baseLabels,
   }
 }
 
-
-
 void appendMetricHeader(String &out, const char *name, const char *help,
                         const char *type) {
   out += F("# HELP ");
@@ -370,8 +368,8 @@ void appendSensorMetric(String &out, String &nameBuffer, String &labelsBuffer,
 
   if (metric.family != nullptr) {
     sensorMetricName(nameBuffer, metric.family);
-    sensorMetricLabels(labelsBuffer, baseLabels,
-                       metric.sensor, metric.field, metric.unit);
+    sensorMetricLabels(labelsBuffer, baseLabels, metric.sensor, metric.field,
+                       metric.unit);
   } else {
     sensorMetricName(nameBuffer, metric.name);
     sensorLabels(labelsBuffer, baseLabels, metric.unit ? metric.unit : "");
@@ -392,4 +390,3 @@ void appendSensorMetric(String &out, String &nameBuffer, String &labelsBuffer,
 
   appendGaugeSample(out, nameBuffer.c_str(), labelsBuffer, metric.value);
 }
-

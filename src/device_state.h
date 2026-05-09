@@ -3,7 +3,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 
-const char* resetReasonToString(esp_reset_reason_t reason);
+const char *resetReasonToString(esp_reset_reason_t reason);
 esp_reset_reason_t readResetReason();
 
 struct DeviceState {

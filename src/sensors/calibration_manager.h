@@ -30,14 +30,12 @@ struct CalibrationKey {
   SensorField field{SensorField::Unknown};
 
   constexpr CalibrationKey() = default;
-  constexpr CalibrationKey(SensorType s, SensorField f)
-      : sensor(s), field(f) {}
+  constexpr CalibrationKey(SensorType s, SensorField f) : sensor(s), field(f) {}
 
-  bool operator==(const CalibrationKey& other) const {
+  bool operator==(const CalibrationKey &other) const {
     return sensor == other.sensor && field == other.field;
   }
 };
-
 
 class CalibrationManager {
 public:
@@ -69,5 +67,3 @@ private:
 
   const char *storagePrefix(CalibrationKey key) const;
 };
-
-

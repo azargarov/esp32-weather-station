@@ -19,11 +19,8 @@ struct SensorMetricFormatContext {
 void appendSensorMetricCallback(const SensorMetric &metric, void *context) {
   auto *ctx = static_cast<SensorMetricFormatContext *>(context);
 
-  appendSensorMetric(*ctx->out,
-                     *ctx->nameBuffer,
-                     *ctx->labelsBuffer,
-                     *ctx->registry,
-                     metric);
+  appendSensorMetric(*ctx->out, *ctx->nameBuffer, *ctx->labelsBuffer,
+                     *ctx->registry, metric);
 }
 
 void fillIdentityJson(JsonDocument &doc) {
@@ -55,8 +52,10 @@ void fillStatusJson(JsonDocument &doc, const DeviceState &state) {
 
 void fillSensorJson(JsonObject sensors, const SensorManager &sensorManager) {
   const SensorSnapshot snapshot = sensorManager.snapshot();
-  sensors["bme280_available"] = snapshot.bme280Available;
-  sensors["bme280_read_ok"] = snapshot.bme280ReadOk;
+  sensors["bme280_available"] = snapshot.bme280.available;
+  sensors["bme280_read_ok"] = snapshot.bme280.readOk;
+  sensors["bh1750_available"] = snapshot.bh1750.available;
+  sensors["bh1750_read_ok"] = snapshot.bh1750.readOk;
 
   JsonObject fields = sensors["fields"].to<JsonObject>();
 
@@ -117,8 +116,8 @@ void fillHostnameResponse(JsonDocument &doc) {
 
 } // namespace
 
-DeviceService::DeviceService(SensorManager& sensorManager, BootInfo bootInfo)
-      : sensorManager_(sensorManager), bootInfo_(bootInfo) {
+DeviceService::DeviceService(SensorManager &sensorManager, BootInfo bootInfo)
+    : sensorManager_(sensorManager), bootInfo_(bootInfo) {
   cachedMetrics_.reserve(2600);
   metricNameBuffer_.reserve(64);
   metricLabelsBuffer_.reserve(128);
@@ -141,12 +140,8 @@ void DeviceService::updateMetricsCache() {
   formatDeviceMetrics(cachedMetrics_, state, metricsBuildDurationMs_,
                       metricsLastBuildUptimeSeconds_);
 
-  SensorMetricFormatContext ctx{
-      &cachedMetrics_,
-      &nameBuffer,
-      &labelsBuffer,
-      &registry
-  };
+  SensorMetricFormatContext ctx{&cachedMetrics_, &nameBuffer, &labelsBuffer,
+                                &registry};
 
   sensorManager_.walkMetrics(appendSensorMetricCallback, &ctx);
 

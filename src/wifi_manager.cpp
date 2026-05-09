@@ -11,15 +11,14 @@ void WiFiManager::connect() {
   Serial.println(Config::WIFI_SSID);
 
   WiFi.mode(WIFI_STA);
-  WiFi.setSleep(false);
-  
+
   String hostname = DeviceIdentity::getEffectiveHostname();
 
   Serial.print(F("[wifi] applying hostname: "));
   Serial.println(hostname);
 
   WiFi.setHostname(hostname.c_str());
-  applyStrongRadioSettings();
+  applyNormalRadioSettings();
 
   WiFi.begin(Config::WIFI_SSID, Config::WIFI_PASSWORD);
 

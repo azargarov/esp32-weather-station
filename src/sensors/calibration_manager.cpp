@@ -20,7 +20,8 @@ const char *calibrationModeToString(CalibrationMode mode) {
   }
 }
 
-void makeKey(char *out, size_t outSize, const char *prefix, const char *suffix) {
+void makeKey(char *out, size_t outSize, const char *prefix,
+             const char *suffix) {
   snprintf(out, outSize, "%s_%s", prefix, suffix);
 }
 
@@ -71,8 +72,8 @@ bool CalibrationManager::setOffsetCalibration(CalibrationKey key, float raw,
 bool CalibrationManager::setTwoPointCalibration(CalibrationKey key, float raw1,
                                                 float ref1, float raw2,
                                                 float ref2) {
-  if (!validKey(key) || !isfinite(raw1) || !isfinite(ref1) ||
-      !isfinite(raw2) || !isfinite(ref2)) {
+  if (!validKey(key) || !isfinite(raw1) || !isfinite(ref1) || !isfinite(raw2) ||
+      !isfinite(ref2)) {
     return false;
   }
 
@@ -92,7 +93,6 @@ bool CalibrationManager::setTwoPointCalibration(CalibrationKey key, float raw1,
   profile.p1.reference = ref1;
   profile.p2.raw = raw2;
   profile.p2.reference = ref2;
-
 
   if (!isfinite(profile.scale) || !isfinite(profile.offset)) {
     return false;
@@ -357,8 +357,8 @@ bool CalibrationManager::removeProfile(CalibrationKey key) const {
 
   const char *prefix = storagePrefix(key);
   char name[14];
-  const char *suffixes[] = {"en",   "mode", "scale", "offset", "h1",
-                            "r1",   "f1",   "h2",    "r2",     "f2"};
+  const char *suffixes[] = {"en", "mode", "scale", "offset", "h1",
+                            "r1", "f1",   "h2",    "r2",     "f2"};
 
   for (const char *suffix : suffixes) {
     makeKey(name, sizeof(name), prefix, suffix);

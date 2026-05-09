@@ -1,24 +1,33 @@
 #include "device_state.h"
 
-const char* resetReasonToString(esp_reset_reason_t reason) {
+const char *resetReasonToString(esp_reset_reason_t reason) {
   switch (reason) {
-    case ESP_RST_POWERON:   return "poweron";
-    case ESP_RST_EXT:       return "external";
-    case ESP_RST_SW:        return "software";
-    case ESP_RST_PANIC:     return "panic";
-    case ESP_RST_INT_WDT:   return "int_wdt";
-    case ESP_RST_TASK_WDT:  return "task_wdt";
-    case ESP_RST_WDT:       return "other_wdt";
-    case ESP_RST_DEEPSLEEP: return "deepsleep";
-    case ESP_RST_BROWNOUT:  return "brownout";
-    case ESP_RST_SDIO:      return "sdio";
-    default:                return "unknown";
+  case ESP_RST_POWERON:
+    return "poweron";
+  case ESP_RST_EXT:
+    return "external";
+  case ESP_RST_SW:
+    return "software";
+  case ESP_RST_PANIC:
+    return "panic";
+  case ESP_RST_INT_WDT:
+    return "int_wdt";
+  case ESP_RST_TASK_WDT:
+    return "task_wdt";
+  case ESP_RST_WDT:
+    return "other_wdt";
+  case ESP_RST_DEEPSLEEP:
+    return "deepsleep";
+  case ESP_RST_BROWNOUT:
+    return "brownout";
+  case ESP_RST_SDIO:
+    return "sdio";
+  default:
+    return "unknown";
   }
 }
 
-esp_reset_reason_t readResetReason(){
-  return esp_reset_reason();
-}
+esp_reset_reason_t readResetReason() { return esp_reset_reason(); }
 
 String wifiStatusToString(wl_status_t status) {
   switch (status) {
@@ -51,4 +60,3 @@ void collectDeviceState(DeviceState &state) {
   state.freeHeapBytes = ESP.getFreeHeap();
   state.wifiRssiDbm = state.wifiConnected ? WiFi.RSSI() : 0;
 }
-

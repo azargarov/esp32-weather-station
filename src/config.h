@@ -13,8 +13,10 @@ constexpr uint32_t WIFI_CONNECT_MAX_RETRIES_MAX_POWER = 30;
 constexpr uint32_t WIFI_CONNECT_MAX_RETRIES = 60;
 constexpr uint32_t WIFI_RECONNECT_INTERVAL_MS = 10000;
 
-constexpr bool BME280_ENABLED = true;
+constexpr bool BME280_ENABLED = false;
 constexpr uint8_t BME280_I2C_ADDRESS = 0x76; //  0x77
+constexpr bool BH1750_ENABLED = true;
+constexpr uint8_t BH1750_I2C_ADDRESS = 0x23;
 
 constexpr uint32_t SENSOR_READ_INTERVAL_MS = 1000;
 constexpr uint32_t METRICS_CACHE_UPDATE_INTERVAL_MS = 1000;

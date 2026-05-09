@@ -17,7 +17,7 @@ enum class SensorField : uint8_t {
 SensorType parseSensorType(const char *sensor);
 SensorField parseSensorField(const char *field);
 
-const char* sensorTypeToString(SensorType st);
-const char* sensorFieldToString(SensorField field);
-const char* sensorFieldUnit(SensorField field);
-//const char* calibrationModeToString(CalibrationMode mode);
+const char *sensorTypeToString(SensorType st);
+const char *sensorFieldToString(SensorField field);
+const char *sensorFieldUnit(SensorField field);
+// const char* calibrationModeToString(CalibrationMode mode);

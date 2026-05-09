@@ -7,7 +7,8 @@
 
 class HttpServer {
 public:
-  HttpServer(DeviceService &deviceService, SensorManager &sensorManager, uint16_t port = 80);
+  HttpServer(DeviceService &deviceService, SensorManager &sensorManager,
+             uint16_t port = 80);
   void begin();
   void handleClient();
   void updateMetricsCache();

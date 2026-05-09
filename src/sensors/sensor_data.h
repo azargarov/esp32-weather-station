@@ -1,7 +1,7 @@
 #pragma once
 
-#include <stdint.h>
 #include "sensor_types.h"
+#include <stdint.h>
 
 struct SensorSample {
   SensorType sensor{SensorType::Unknown};
@@ -12,19 +12,18 @@ struct SensorSample {
 
   constexpr SensorSample() = default;
 
-  constexpr SensorSample(SensorType sensorType,
-                         SensorField sensorField,
-                         bool isValid,
-                         float sampleValue,
-                         uint32_t ts)
-      : sensor(sensorType),
-        field(sensorField),
-        valid(isValid),
-        value(sampleValue),
-        timestampMs(ts) {}
+  constexpr SensorSample(SensorType sensorType, SensorField sensorField,
+                         bool isValid, float sampleValue, uint32_t ts)
+      : sensor(sensorType), field(sensorField), valid(isValid),
+        value(sampleValue), timestampMs(ts) {}
+};
+
+struct SensorStatus {
+  bool available = false;
+  bool readOk = false;
 };
 
 struct SensorSnapshot {
-  bool bme280Available = false;
-  bool bme280ReadOk = false;
+  SensorStatus bme280;
+  SensorStatus bh1750;
 };

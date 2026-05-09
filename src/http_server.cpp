@@ -49,12 +49,12 @@ void HttpServer::begin() {
   server_.begin();
 }
 
-void HttpServer::handlePing() {
-  server_.send(200, "text/plain", "ok");
-}
+void HttpServer::handlePing() { server_.send(200, "text/plain", "ok"); }
 
-HttpServer::HttpServer(DeviceService &deviceService, SensorManager &sensorManager, uint16_t port)
-    : server_(port), sensorManager_(sensorManager), deviceService_(deviceService) {}
+HttpServer::HttpServer(DeviceService &deviceService,
+                       SensorManager &sensorManager, uint16_t port)
+    : server_(port), sensorManager_(sensorManager),
+      deviceService_(deviceService) {}
 
 void HttpServer::registerRoutes() {
   server_.on("/", [this]() { handleRoot(); });

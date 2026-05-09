@@ -4,7 +4,6 @@
 #include "sensors/sensor_manager.h"
 #include <Arduino.h>
 
-
 struct MetricHeaderRegistry {
   static constexpr size_t kMaxNames = 32;
   String names[kMaxNames];
@@ -26,8 +25,6 @@ struct MetricHeaderRegistry {
   }
 };
 
-
-
 void initMetricsFormatter();
 
 const String &getBaseLabels();
@@ -39,5 +36,4 @@ void formatDeviceMetrics(String &out, const DeviceState &state,
                          uint32_t metricsLastBuildUptimeSeconds);
 void appendSensorMetric(String &out, String &nameBuffer, String &labelsBuffer,
                         MetricHeaderRegistry &registry,
-                        const SensorMetric &metric); 
-
+                        const SensorMetric &metric);

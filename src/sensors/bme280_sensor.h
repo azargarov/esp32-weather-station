@@ -1,7 +1,8 @@
 #pragma once
 
+#include "aggregated_metric.h"
 #include "sensor_data.h"
-
+#include "sensor_module.h"
 #include <Adafruit_BME280.h>
 #include <Arduino.h>
 
@@ -13,6 +14,16 @@ struct Bme280Reading {
   float pressureHpa = NAN;
 
   uint32_t timestampMs = 0;
+};
+
+struct Bme280Metrics {
+  MetricStats temperature;
+  MetricStats humidity;
+  MetricStats pressure;
+
+  bool hasValue() const {
+    return temperature.hasValue() || humidity.hasValue() || pressure.hasValue();
+  }
 };
 
 class Bme280Sensor {

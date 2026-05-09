@@ -1,33 +1,49 @@
 #include "sensor_types.h"
 
-const char* sensorTypeToString(SensorType st) {
+const char *sensorTypeToString(SensorType st) {
   switch (st) {
-    case SensorType::Bme280: return "bme280";
-    case SensorType::Bh1750: return "bh1750";
-    case SensorType::Adc:    return "adc";
-    default:                 return "unknown";
+  case SensorType::Bme280:
+    return "bme280";
+  case SensorType::Bh1750:
+    return "bh1750";
+  case SensorType::Adc:
+    return "adc";
+  default:
+    return "unknown";
   }
 }
 
-const char* sensorFieldToString(SensorField field) {
+const char *sensorFieldToString(SensorField field) {
   switch (field) {
-    case SensorField::Temperature:   return "temperature";
-    case SensorField::Humidity:      return "humidity";
-    case SensorField::Pressure:      return "pressure";
-    case SensorField::Illuminance:   return "illuminance";
-    case SensorField::SupplyVoltage: return "supply_voltage";
-    default:                         return "unknown";
+  case SensorField::Temperature:
+    return "temperature";
+  case SensorField::Humidity:
+    return "humidity";
+  case SensorField::Pressure:
+    return "pressure";
+  case SensorField::Illuminance:
+    return "illuminance";
+  case SensorField::SupplyVoltage:
+    return "supply_voltage";
+  default:
+    return "unknown";
   }
 }
 
-const char* sensorFieldUnit(SensorField field) {
+const char *sensorFieldUnit(SensorField field) {
   switch (field) {
-    case SensorField::Temperature:   return "celsius";
-    case SensorField::Humidity:      return "percent";
-    case SensorField::Pressure:      return "hpa";
-    case SensorField::Illuminance:   return "lux";
-    case SensorField::SupplyVoltage: return "volt";
-    default:                         return "";
+  case SensorField::Temperature:
+    return "celsius";
+  case SensorField::Humidity:
+    return "percent";
+  case SensorField::Pressure:
+    return "hpa";
+  case SensorField::Illuminance:
+    return "lux";
+  case SensorField::SupplyVoltage:
+    return "volt";
+  default:
+    return "";
   }
 }
 

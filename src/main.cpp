@@ -1,16 +1,16 @@
 #include "config.h"
 #include "device_identity.h"
+#include "device_state.h"
 #include "http_server.h"
 #include "sensors/sensor_manager.h"
 #include "wifi_manager.h"
-#include "device_state.h"
 #include <Arduino.h>
 
-namespace{
-  WiFiManager wifiManager;
-  SensorManager sensorManager;
-  HttpServer* httpServer = nullptr;
-}
+namespace {
+WiFiManager wifiManager;
+SensorManager sensorManager;
+HttpServer *httpServer = nullptr;
+} // namespace
 
 void setup() {
   DeviceIdentity::begin();
@@ -28,7 +28,8 @@ void setup() {
   Serial.println(resetReasonToString(bootInfo.resetReason));
 
   static DeviceService deviceServiceInstance(sensorManager, bootInfo);
-  static HttpServer httpServerInstance(deviceServiceInstance, sensorManager, 80);
+  static HttpServer httpServerInstance(deviceServiceInstance, sensorManager,
+                                       80);
 
   httpServer = &httpServerInstance;
 
@@ -62,16 +63,16 @@ void loop() {
   wifiManager.handleSerialInput();
 
   sensorManager.update();
-  
+
   static uint32_t lastMetricsCacheUpdateMs = 0;
   const uint32_t now = millis();
-  
+
   if (now - lastMetricsCacheUpdateMs >=
-    Config::METRICS_CACHE_UPDATE_INTERVAL_MS) {
-      lastMetricsCacheUpdateMs = now;
-      httpServer->updateMetricsCache();
+      Config::METRICS_CACHE_UPDATE_INTERVAL_MS) {
+    lastMetricsCacheUpdateMs = now;
+    httpServer->updateMetricsCache();
   }
-  
+
   httpServer->handleClient();
   delay(Config::LOOP_DELAY_MS);
 }
