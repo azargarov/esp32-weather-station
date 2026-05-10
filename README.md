@@ -1,42 +1,28 @@
 # ESP32 Sensor Node
 
-ESP32 Sensor Node is a small firmware project for an ESP32-based environmental sensor. It reads data from a BME280 sensor, exposes device status through HTTP, and provides Prometheus-compatible metrics for Grafana dashboards.
+ESP32 Sensor Node is a firmware project for ESP32-based environmental monitoring nodes.
+It exposes device state and sensor data over HTTP, publishes Prometheus-compatible metrics, supports persistent device identity and sensor calibration, and is designed to fit into a small homelab observability setup.
 
-The project is designed as a lightweight homelab observability node: each ESP32 can be provisioned with a stable device ID and hostname, discovered through mDNS, scraped by Prometheus, and visualized in Grafana.
+The current branch supports:
 
-The node is designed to behave like a small, self-contained observability exporter.
+- device provisioning with stable device IDs and hostnames
+- mDNS discovery, for example `http://livingroom-sensor.local`
+- Prometheus `/metrics` scraping
+- JSON and text status endpoints
+- persistent calibration profiles in ESP32 NVS
+- optional BME280 and BH1750 sensor modules
+- rolling 60-second statistics computed on the device
 
 ## Features
 
-- ESP32 WiFi connection with reconnect handling.
-- Optional BME280 support for temperature, humidity, and pressure.
-- HTTP API for health checks, JSON status, device information, provisioning, hostname updates, reboot requests, and sensor calibration.
-- Prometheus `/metrics` endpoint.
-- Persistent device identity stored in ESP32 NVS using `Preferences`.
-- Persistent sensor calibration profiles stored in ESP32 NVS and restored after reboot.
-- mDNS support, for example `http://livingroom-sensor.local`.
-- Helper provisioning script for scanning devices and assigning stable IDs and hostnames.
-- Modular C++ structure: WiFi, HTTP, device service, identity, state, sensors, and metrics formatting are separated.
-
-## Hardware
-
-Typical setup:
-
-- ESP32 development board.
-- BME280 sensor module.
-- WiFi network.
-- Optional Prometheus and Grafana server for monitoring.
-
-Typical BME280 wiring for many ESP32 development boards:
-
-| BME280 | ESP32 |
-|---|---|
-| VIN / VCC | 3.3V |
-| GND | GND |
-| SDA | GPIO 21 |
-| SCL | GPIO 22 |
-
-The firmware calls `Wire.begin()` without custom pins, so it uses the default I2C pins for the selected ESP32 board. Adjust the code if your board uses different pins.
+- Wi-Fi connection management with reconnect handling
+- persistent device identity stored in NVS with `Preferences`
+- HTTP API for health, ping, status, device info, provisioning, hostname updates, reboot, and calibration
+- Prometheus metrics with stable identity labels
+- modular sensor architecture with separate sensor modules behind a shared interface
+- rolling sensor statistics: mean, median, min, max, range, stddev, slope, and sample count
+- one-point and two-point calibration persisted across reboots
+- helper provisioning script for scanning the subnet and assigning IDs and hostnames
 
 ## Related repository
 
@@ -46,10 +32,45 @@ The observability stack for this project lives here:
 
 It contains Prometheus scrape configuration, Grafana dashboards, alert rules, and templates for running the monitoring stack locally.
 
+## Hardware
+
+Typical setup:
+
+- ESP32 development board
+- optional BME280 sensor module
+- optional BH1750 sensor module
+- Wi-Fi network
+- optional Prometheus and Grafana server for monitoring
+
+### Typical I2C wiring
+
+Both sensors use I2C and can share the same bus.
+The firmware calls `Wire.begin()` without custom pins, so it uses the default I2C pins for the selected ESP32 board.
+For many ESP32 development boards that means:
+
+| Signal | ESP32 |
+|---|---|
+| SDA | GPIO 21 |
+| SCL | GPIO 22 |
+| 3.3V | 3.3V |
+| GND | GND |
+
+Example sensor wiring:
+
+| Sensor | Pin | ESP32 |
+|---|---|---|
+| BME280 | VIN / VCC | 3.3V |
+| BME280 | GND | GND |
+| BME280 | SDA | GPIO 21 |
+| BME280 | SCL | GPIO 22 |
+| BH1750 | VCC | 3.3V |
+| BH1750 | GND | GND |
+| BH1750 | SDA | GPIO 21 |
+| BH1750 | SCL | GPIO 22 |
+
+Adjust the wiring if your board uses different default I2C pins.
 
 ## Project layout
-
-The code is structured around a few simple responsibilities:
 
 ```mermaid
 flowchart TD
@@ -63,27 +84,42 @@ flowchart TD
     service --> metrics[MetricsFormatter]
     service --> sensors
 
-    sensors --> bme[Bme280Sensor]
+    sensors --> cal[CalibrationManager]
+    sensors --> bme[Bme280Module]
+    sensors --> lux[Bh1750Module]
+
+    bme --> bmeDriver[Bme280Sensor]
+    lux --> luxDriver[Bh1750Sensor]
 ```
 
-## Configuration
+## Current configuration defaults
 
-Runtime constants are stored in `config.h`.
+Runtime constants are stored in `src/config.h`.
 
-Important options:
+Current branch defaults:
 
 ```cpp
 constexpr uint32_t CPU_FREQ_MHZ = 240;
 constexpr uint32_t SERIAL_BAUD = 115200;
-constexpr uint32_t LOOP_DELAY_MS = 100;
+constexpr uint32_t LOOP_DELAY_MS = 1;
 
-constexpr bool BME280_ENABLED = true;
-constexpr uint8_t BME280_I2C_ADDRESS = 0x76; // or 0x77
+constexpr bool BME280_ENABLED = false;
+constexpr uint8_t BME280_I2C_ADDRESS = 0x76;
+
+constexpr bool BH1750_ENABLED = true;
+constexpr uint8_t BH1750_I2C_ADDRESS = 0x23;
+
 constexpr uint32_t SENSOR_READ_INTERVAL_MS = 1000;
+constexpr uint32_t METRICS_CACHE_UPDATE_INTERVAL_MS = 1000;
+constexpr uint32_t SENSOR_PROBE_INTERVAL_MS = 60000;
 ```
 
-WiFi credentials are expected in `secrets.h`, which should not be committed to Git.
+That means the branch currently defaults to BH1750 enabled and BME280 disabled.
+If you want BME280 data, enable it in `src/config.h` before building.
 
+### Wi-Fi credentials
+
+Wi-Fi credentials are expected in `secrets.h`, which should not be committed.
 Create `include/secrets.h` or another include path visible to PlatformIO:
 
 ```cpp
@@ -94,49 +130,63 @@ constexpr const char *WIFI_SSID = "your-wifi-ssid";
 constexpr const char *WIFI_PASSWORD = "your-wifi-password";
 }
 ```
-## BME280 measurement mode
 
-The firmware uses the BME280 in forced mode. Each read triggers a fresh measurement on demand instead of leaving the sensor in continuous sampling mode.
+## Sensor behavior
 
-Current sampling setup:
+### BME280
 
-temperature: SAMPLING_X1
-pressure: SAMPLING_X8
-humidity: SAMPLING_X1
-filter: FILTER_X4
+When enabled, the BME280 driver runs in forced mode.
+Each read triggers a fresh measurement on demand.
 
+Current BME280 sampling configuration:
+
+- temperature: `SAMPLING_X1`
+- pressure: `SAMPLING_X8`
+- humidity: `SAMPLING_X1`
+- filter: `FILTER_X4`
+
+### BH1750
+
+The BH1750 driver is initialized in continuous high-resolution mode.
+
+### Re-probing behavior
+
+Enabled sensor modules probe on boot.
+If an enabled sensor is missing, the module retries probing every `SENSOR_PROBE_INTERVAL_MS`.
+On the current branch, that interval is 60 seconds.
 
 ## Development workflow
 
 A normal device workflow looks like this:
 
-1. Configure WiFi credentials in `secrets.h`.
-2. Build and flash the firmware.
-3. Open the serial monitor and confirm that the device has joined WiFi.
-4. Scan the LAN for ESP32 nodes.
-5. Assign a stable device ID and hostname.
-6. Reboot the device so the WiFi hostname and mDNS name are applied.
-7. Verify HTTP, JSON, and Prometheus endpoints.
-8. Add the device to Prometheus target discovery.
-9. Build Grafana panels from the exported metrics.
+1. Configure Wi-Fi credentials in `secrets.h`
+2. Adjust sensor enable flags in `src/config.h` if needed
+3. Build and flash the firmware
+4. Open the serial monitor and confirm that the device joined Wi-Fi
+5. Scan the LAN for ESP32 nodes
+6. Assign a stable device ID and hostname
+7. Reboot the device so the Wi-Fi hostname and mDNS name are applied
+8. Verify HTTP, JSON, and Prometheus endpoints
+9. Add the device to Prometheus target discovery
+10. Build Grafana dashboards from the exported metrics
 
 ## Build, flash, and monitor
 
 This project is intended to be built with PlatformIO.
 
-Build:
+### Build
 
 ```bash
 pio run
 ```
 
-Upload to the ESP32:
+### Upload
 
 ```bash
 pio run -t upload
 ```
 
-Open serial monitor:
+### Serial monitor
 
 ```bash
 pio device monitor
@@ -144,29 +194,52 @@ pio device monitor
 
 During runtime, press `i` in the serial monitor to print current network information again.
 
-If the repository has Makefile wrappers, the equivalent commands may be:
+### Makefile wrappers
+
+The repository also provides wrappers:
 
 ```bash
 make build
 make flash
 make monitor
+make check
+make clean
 ```
+
+To override the serial port with the Makefile:
+
+```bash
+make flash PORT=/dev/ttyUSB1
+make monitor PORT=/dev/ttyUSB1
+```
+
+### Note about serial ports
+
+`platformio.ini` on the current branch sets:
+
+- `upload_port = /dev/ttyUSB0`
+- `monitor_port = /dev/ttyUSB0`
+
+If your adapter uses another device path, edit `platformio.ini` or override the port in your command flow.
 
 ## First boot
 
 On boot, the firmware:
 
-1. Initializes device identity from NVS.
-2. Sets CPU frequency.
-3. Starts the serial console.
-4. Probes the BME280 sensor.
-5. Connects to WiFi.
-6. Starts mDNS.
-7. Starts the HTTP server on port `80`.
+1. initializes device identity from NVS
+2. sets CPU frequency
+3. starts the serial console
+4. records the reset reason
+5. starts sensor modules
+6. connects to Wi-Fi
+7. starts mDNS if Wi-Fi is connected
+8. starts the HTTP server on port `80`
+9. builds the initial metrics cache
 
 The serial output prints the hardware ID, provisioned ID, effective ID, IP address, RSSI, hostname, and mDNS URL.
 
-Before provisioning, the device uses its hardware-derived ID as the effective ID and hostname. After provisioning, it uses the stored device ID and hostname.
+Before provisioning, the device uses its hardware-derived ID as the effective ID and hostname.
+After provisioning, it uses the stored device ID and hostname.
 
 ## Device identity
 
@@ -176,30 +249,26 @@ Each ESP32 has a hardware ID derived from the chip eFuse MAC address:
 esp32-<chip-id>
 ```
 
-A device can also be provisioned with a human-friendly ID and hostname. These values are stored in NVS under the `device` namespace.
+A device can also be provisioned with a human-friendly ID and hostname.
+These values are stored in NVS under the `device` namespace.
 
-The effective ID is selected like this:
-
-```text
-provisioned_id if set, otherwise hardware_id
-```
-
-The effective hostname is selected like this:
+Selection rules:
 
 ```text
-hostname if set, otherwise effective_id
+effective_id = provisioned_id if set, otherwise hardware_id
+effective_hostname = hostname if set, otherwise effective_id
 ```
 
-Device ID rules:
+### Device ID rules
 
-- Maximum length: 32 characters.
-- Allowed characters: letters, numbers, `-`, `_`.
+- maximum length: 32 characters
+- allowed characters: letters, numbers, `-`, `_`
 
-Hostname rules:
+### Hostname rules
 
-- Maximum length: 32 characters.
-- Allowed characters: letters, numbers, `-`.
-- Cannot start or end with `-`.
+- maximum length: 32 characters
+- allowed characters: letters, numbers, `-`
+- cannot start or end with `-`
 
 ## Provisioning workflow
 
@@ -215,14 +284,7 @@ If you are already inside `tools/provision`, run it as:
 python3 assign_id.py --subnet 192.168.1.0/24 --list
 ```
 
-The script scans the subnet and calls each device's `/api/device/info` endpoint. Example output:
-
-```text
-IP               PROVISIONED  DEVICE_ID       HOSTNAME             HARDWARE_ID
---------------------------------------------------------------------------------------------
-192.168.1.233    True         esp32-001       livingroom-sensor    esp32-3C772BA50528
-192.168.1.234    False        -               esp32-3C772BA50910   esp32-3C772BA50910
-```
+The script scans the subnet and calls each device's `/api/device/info` endpoint.
 
 ### Install Python dependency
 
@@ -246,8 +308,6 @@ python3 -m pip install requests
 python3 tools/provision/assign_id.py --subnet 192.168.1.0/24 --list
 ```
 
-Use this before assigning IDs. It shows IP address, provisioning state, current device ID, hostname, and hardware ID.
-
 ### Assign the next free ID
 
 ```bash
@@ -258,15 +318,13 @@ python3 tools/provision/assign_id.py \
   --hostname balcony-sensor
 ```
 
-By default, generated IDs use this pattern:
+Generated IDs use this pattern by default:
 
 ```text
 esp32-001
 esp32-002
 esp32-003
 ```
-
-The next free ID is calculated from already discovered device IDs.
 
 ### Assign a specific ID and hostname
 
@@ -282,8 +340,6 @@ If `--hostname` is omitted, the hostname defaults to the assigned device ID.
 
 ### Target by hardware ID
 
-If the device IP changes or multiple devices are found, target the physical board by hardware ID:
-
 ```bash
 python3 tools/provision/assign_id.py \
   --subnet 192.168.1.0/24 \
@@ -292,11 +348,10 @@ python3 tools/provision/assign_id.py \
   --hwid esp32-3C772BA50528
 ```
 
-This is useful when several new devices are online at the same time.
-
 ### Update hostname on an already provisioned device
 
-Provisioning a device ID is intentionally one-time from the public API. Hostname can still be updated.
+Provisioning a device ID is intentionally one-time through the public API.
+Hostname can still be updated.
 
 For already provisioned devices, use `--force`:
 
@@ -309,21 +364,17 @@ python3 tools/provision/assign_id.py \
   --force
 ```
 
-The script will only update the hostname if the existing device ID matches the requested `--id`.
+The script only updates the hostname if the existing device ID matches the requested `--id`.
 
 ### Reboot after provisioning
 
-Provisioning and hostname changes are stored immediately, but the WiFi hostname and mDNS name are applied after reboot.
-
-Reboot through the API:
+Provisioning and hostname changes are stored immediately, but the Wi-Fi hostname and mDNS name are applied after reboot.
 
 ```bash
 curl -X POST http://192.168.1.233/api/device/reboot \
   -H 'Content-Type: application/json' \
   -d '{}' | jq
 ```
-
-Or press the board reset button.
 
 After reboot, verify mDNS:
 
@@ -337,59 +388,9 @@ If `.local` resolution does not work from Linux, make sure Avahi is installed an
 systemctl status avahi-daemon
 ```
 
-### Full example: adding a new balcony sensor
-
-Flash the board:
-
-```bash
-pio run -t upload
-pio device monitor
-```
-
-Scan the subnet:
-
-```bash
-python3 tools/provision/assign_id.py --subnet 192.168.1.0/24 --list
-```
-
-Assign ID and hostname:
-
-```bash
-python3 tools/provision/assign_id.py \
-  --subnet 192.168.1.0/24 \
-  --id esp32-002 \
-  --hostname balcony-sensor \
-  --ip 192.168.1.234
-```
-
-Reboot:
-
-```bash
-curl -X POST http://192.168.1.234/api/device/reboot \
-  -H 'Content-Type: application/json' \
-  -d '{}' | jq
-```
-
-Verify:
-
-```bash
-curl http://balcony-sensor.local/json | jq
-curl http://balcony-sensor.local/metrics
-```
-
-Add it to Prometheus target discovery:
-
-```yaml
-- targets:
-    - 192.168.1.234:80
-  labels:
-    device: esp32-balcony
-    room: balcony
-```
-
 ## HTTP API
 
-Replace `192.168.1.233` with the actual ESP32 IP address or use the mDNS hostname.
+Replace `192.168.1.233` with the actual device IP or the mDNS hostname.
 
 ### Text status
 
@@ -397,7 +398,7 @@ Replace `192.168.1.233` with the actual ESP32 IP address or use the mDNS hostnam
 curl http://192.168.1.233/
 ```
 
-Returns a human-readable status page with device identity, IP, uptime, and sensor values.
+Returns a human-readable status page with identity, IP, uptime, and current exported field values.
 
 ### Health check
 
@@ -411,13 +412,25 @@ Expected response:
 OK
 ```
 
+### Ping
+
+```bash
+curl http://192.168.1.233/ping
+```
+
+Expected response:
+
+```text
+ok
+```
+
 ### JSON status
 
 ```bash
 curl http://192.168.1.233/json | jq
 ```
 
-Example response:
+Typical structure:
 
 ```json
 {
@@ -429,45 +442,31 @@ Example response:
   "provisioned": true,
   "status": "ok",
   "ip": "192.168.1.233",
-  "uptime_sec": 48779,
-  "heap_free": 229452,
+  "uptime_sec": 12345,
+  "heap_free": 230000,
   "wifi_rssi": -54,
   "wifi_connected": true,
   "wifi_status": "connected",
   "sensors": {
-    "bme280_available": true,
-    "bme280_read_ok": true,
-    "bh1750_available": false,
-    "bh1750_read_ok": false,
+    "bme280_available": false,
+    "bme280_read_ok": false,
+    "bh1750_available": true,
+    "bh1750_read_ok": true,
     "fields": {
-      "temperature_mean_60s": {
-        "value": 21.98511,
-        "unit": "celsius"
+      "illuminance_mean_60s": {
+        "value": 123.4,
+        "unit": "lux"
       },
-      "temperature_median_60s": {
-        "value": 21.9868,
-        "unit": "celsius"
-      },
-      "humidity_mean_60s": {
-        "value": 22.60653,
-        "unit": "percent"
-      },
-      "humidity_median_60s": {
-        "value": 22.60612,
-        "unit": "percent"
-      },
-      "pressure_mean_60s": {
-        "value": 1010.716,
-        "unit": "hpa"
-      },
-      "pressure_median_60s": {
-        "value": 1010.72,
-        "unit": "hpa"
+      "illuminance_median_60s": {
+        "value": 120.9,
+        "unit": "lux"
       }
     }
   }
 }
 ```
+
+The exact `fields` object depends on which sensors are enabled and currently producing valid data.
 
 ### Device info
 
@@ -475,11 +474,9 @@ Example response:
 curl http://192.168.1.233/api/device/info | jq
 ```
 
-Returns identity and IP information only.
+This endpoint returns identity and IP information plus reset-reason data.
 
 ### Provision device manually
-
-The Python script is preferred, but the API can also be called directly:
 
 ```bash
 curl -X POST http://192.168.1.233/api/device/provision \
@@ -487,7 +484,7 @@ curl -X POST http://192.168.1.233/api/device/provision \
   -d '{"device_id":"esp32-001","hostname":"livingroom-sensor"}' | jq
 ```
 
-Successful response:
+Successful response shape:
 
 ```json
 {
@@ -502,7 +499,7 @@ Successful response:
 }
 ```
 
-Provisioning is currently a one-time operation. If the device already has a provisioned ID, the endpoint returns:
+If the device is already provisioned, the endpoint returns:
 
 ```json
 {
@@ -518,7 +515,7 @@ curl -X POST http://192.168.1.233/api/device/hostname \
   -d '{"hostname":"balcony-sensor"}' | jq
 ```
 
-The new hostname is stored immediately, but a reboot is required before WiFi hostname and mDNS changes fully apply.
+The new hostname is stored immediately, but a reboot is required before Wi-Fi hostname and mDNS changes fully apply.
 
 ### Reboot device
 
@@ -539,70 +536,86 @@ Expected response:
 
 The reboot is delayed briefly so the HTTP response can be sent before `ESP.restart()` is called.
 
+## Calibration API
 
-### Sensor calibration (BME280)
+Calibration routes are handled dynamically under:
 
-Get current calibration:
+```text
+GET  /api/sensors/<sensor>/calibration
+POST /api/sensors/<sensor>/<field>/calibration
+```
+
+Sensor and field names are case-sensitive.
+
+### Supported sensor names
+
+- `bme280`
+- `bh1750`
+
+### Supported calibration fields
+
+For `bme280`:
+
+- `temperature`
+- `humidity`
+- `pressure`
+
+For `bh1750`:
+
+- `illuminance`
+
+### Read current calibration
 
 ```bash
 curl http://192.168.1.233/api/sensors/bme280/calibration | jq
+curl http://192.168.1.233/api/sensors/bh1750/calibration | jq
 ```
+
+### Set calibration point
+
 Each calibration request must include:
-- reference: the trusted reference value
-- point: calibration point index, either 1 or 2
 
-Calibrate using a reference measurement:
+- `reference`: trusted reference value
+- `point`: calibration point index, either `1` or `2`
+
+Example for BME280 temperature:
 
 ```bash
-curl -X POST http://<device IP>/api/sensors/bme280/temperature/calibration \
-  -H "Content-Type: application/json" \
-  -d '{"reference": 22.7, "point":1}'| jq
+curl -X POST http://192.168.1.233/api/sensors/bme280/temperature/calibration \
+  -H 'Content-Type: application/json' \
+  -d '{"reference": 22.7, "point": 1}' | jq
 ```
+
+Example for BH1750 illuminance:
+
 ```bash
-curl -X POST http://<device IP>/api/sensors/bme280/temperature/calibration \
-  -H "Content-Type: application/json" \
-  -d '{"reference": 2.0, "point":2}' | jq
+curl -X POST http://192.168.1.233/api/sensors/bh1750/illuminance/calibration \
+  -H 'Content-Type: application/json' \
+  -d '{"reference": 320.0, "point": 1}' | jq
 ```
-Calibration behavior:
- - if only one point is stored, the device uses offset calibration
- - if both point 1 and point 2 are stored, the device uses linear two-point calibration
- - calibration profiles are stored in NVS and restored after reboot
- - calibration data remains available even if the physical sensor is currently not detected
- - 
-Single-point calibration behaves like this:
-```text 
+
+### Calibration behavior
+
+- one stored point produces offset calibration
+- two stored points produce linear two-point calibration
+- calibration profiles are stored in NVS and restored after reboot
+- calibration data remains available even if the physical sensor is currently missing
+- calibration can only be updated when a valid current reading is available for the target field
+
+Single-point calibration:
+
+```text
 offset = reference - raw
 corrected = raw + offset
 ```
 
-Two-point calibration behaves like this:
+Two-point calibration:
+
 ```text
 scale = (ref2 - ref1) / (raw2 - raw1)
 offset = ref1 - scale * raw1
 corrected = scale * raw + offset
 ```
-#### Note
-
-Sensor and field names are currently case-sensitive.
-
-Supported sensor names:
-- `bme280`
-- 
-```promql
-esp32_sensor_temperature_avg_60s{room="livingroom"}
-esp32_sensor_temperature_avg_60s{room="balcony"}
-esp32_sensor_humidity_avg_60s
-esp32_sensor_pressure_avg_60s
-esp32_wifi_rssi_dbm
-esp32_heap_free_bytes
-esp32_sensor_bme280_read_ok
-```
-
-Supported BME280 calibration fields:
-- `temperature`
-- `humidity`
-- `pressure`
-- `illuminance`
 
 ## Prometheus metrics
 
@@ -612,95 +625,93 @@ Metrics are exposed at:
 curl http://192.168.1.233/metrics
 ```
 
-The endpoint returns Prometheus text format.
+The endpoint returns Prometheus text format and serves a cached response rebuilt in the main loop.
 
 ### Core device metrics
 
- - esp32_up — firmware is running
- - esp32_wifi_connected — WiFi connection status
- - esp32_uptime_seconds — time since boot
- - esp32_heap_free_bytes — free heap memory
- - esp32_wifi_rssi_dbm — WiFi signal strength
- - esp32_wifi_status_info — WiFi status as a labeled info metric
- - esp32_metrics_build_duration_ms — time spent rebuilding cached metrics
- - esp32_metrics_last_build_uptime_seconds — device uptime when cached metrics were last rebuilt
+- `esp32_up`
+- `esp32_wifi_connected`
+- `esp32_uptime_seconds`
+- `esp32_heap_free_bytes`
+- `esp32_wifi_rssi_dbm`
+- `esp32_wifi_status_info`
+- `esp32_metrics_build_duration_ms`
+- `esp32_metrics_last_build_uptime_seconds`
 
 All metrics include firmware-provided identity labels:
 
-``text
+```text
 device_id="esp32-001",hardware_id="esp32-000000000000"
 ```
 
 ### Sensor state metrics
 
-Per-sensor availability, last read status, and read error counters are exposed as dedicated metrics:
- - esp32_sensor_bme280_available
- - esp32_sensor_bme280_read_ok
- - esp32_sensor_bme280_read_errors_total
- - esp32_sensor_bh1750_available
- - esp32_sensor_bh1750_read_ok
- - esp32_sensor_bh1750_read_errors_total
+Per-sensor availability, last-read status, and read-error counters are exposed as dedicated metrics:
 
-### Rolling sensor statistics
+- `esp32_sensor_bme280_available`
+- `esp32_sensor_bme280_read_ok`
+- `esp32_sensor_bme280_read_errors_total`
+- `esp32_sensor_bh1750_available`
+- `esp32_sensor_bh1750_read_ok`
+- `esp32_sensor_bh1750_read_errors_total`
+
+### Rolling sensor statistic families
 
 Measured values are exported through shared metric families with labels describing the sensor and field:
- - esp32_sensor_mean_60s
- - esp32_sensor_median_60s
- - esp32_sensor_min_60s
- - esp32_sensor_max_60s
- - esp32_sensor_range_60s
- - esp32_sensor_stddev_60s
- - esp32_sensor_slope_per_minute_60s
- - esp32_sensor_samples_60s
+
+- `esp32_sensor_mean_60s`
+- `esp32_sensor_median_60s`
+- `esp32_sensor_min_60s`
+- `esp32_sensor_max_60s`
+- `esp32_sensor_range_60s`
+- `esp32_sensor_stddev_60s`
+- `esp32_sensor_slope_per_minute_60s`
+- `esp32_sensor_samples_60s`
 
 Typical labels:
+
 ```text
 sensor="bme280",field="temperature",unit="celsius"
 sensor="bme280",field="humidity",unit="percent"
 sensor="bme280",field="pressure",unit="hpa"
 sensor="bh1750",field="illuminance",unit="lux"
 ```
+
 Example:
+
 ```text
-esp32_sensor_mean_60s{device_id="esp32-001",hardware_id="esp32-000000000000",sensor="bme280",field="temperature",unit="celsius"} 21.98
+esp32_sensor_mean_60s{device_id="esp32-001",hardware_id="esp32-000000000000",sensor="bh1750",field="illuminance",unit="lux"} 123.4
 ```
 
-## Calibration metrics
+### Calibration metrics
 
 Calibration state is exported per sensor field:
- - esp32_sensor_calibration_enabled
- - esp32_sensor_calibration_scale
- - esp32_sensor_calibration_offset
- - esp32_sensor_calibration_mode
+
+- `esp32_sensor_calibration_enabled`
+- `esp32_sensor_calibration_scale`
+- `esp32_sensor_calibration_offset`
+- `esp32_sensor_calibration_mode`
 
 Calibration mode values:
- - 0 - none
- - 1 - offset
- - 2 - two-point
+
+- `0` = none
+- `1` = offset
+- `2` = two-point
 
 Example:
+
 ```text
-esp32_sensor_calibration_scale{device_id="esp32-001",hardware_id="esp32-000000000000",sensor="bme280",field="temperature"} 1.02
-esp32_sensor_calibration_offset{device_id="esp32-001",hardware_id="esp32-000000000000",sensor="bme280",field="temperature",unit="celsius"} 0.26
+esp32_sensor_calibration_scale{device_id="esp32-001",hardware_id="esp32-000000000000",sensor="bh1750",field="illuminance"} 1
+esp32_sensor_calibration_offset{device_id="esp32-001",hardware_id="esp32-000000000000",sensor="bh1750",field="illuminance",unit="lux"} 0
 ```
 
-### Metrics caching
+### Metrics cache age
 
-To reduce response latency and heap pressure, the `/metrics` endpoint serves a cached response.
-
-- Metrics are rebuilt periodically in the main loop.
-- The update interval is configurable via:
+The metrics cache rebuild interval is controlled by:
 
 ```cpp
 constexpr uint32_t METRICS_CACHE_UPDATE_INTERVAL_MS = 1000;
 ```
-
-### Additional diagnostic metrics are exposed:
-
-| Metric | Description |
-|---|---|
-| `esp32_metrics_build_duration_ms` | Time spent rebuilding the metrics snapshot. |
-| `esp32_metrics_last_build_uptime_seconds` | Device uptime when the last rebuild occurred. |
 
 You can derive cache age in Prometheus:
 
@@ -737,26 +748,21 @@ Example `/etc/prometheus/targets/esp32.yml`:
     room: balcony
 ```
 
-The firmware-provided labels identify the physical ESP32. The Prometheus target labels are useful for logical placement, for example `room`, `floor`, `environment`, or `site`.
-
+The firmware-provided labels identify the physical device.
+Prometheus target labels are useful for logical placement such as `room`, `floor`, `environment`, or `site`.
 
 ## Design notes
 
-`HttpServer` is responsible for HTTP routing and response handling.
+- `HttpServer` handles routing and response dispatch
+- `DeviceService` owns status generation, metrics generation, provisioning, hostname changes, and reboot scheduling
+- `DeviceIdentity` owns persistent identity data in NVS
+- `DeviceState` collects runtime state such as Wi-Fi status, IP, uptime, heap, and RSSI
+- `SensorManager` owns sensor modules and delegates updates, field walking, metrics walking, and calibration lookup
+- `CalibrationManager` owns calibration storage, recalculation, and JSON export
+- `Bme280Module` and `Bh1750Module` adapt sensor-specific logic into a shared module interface
+- `MetricsFormatter` converts state and sensor metrics into Prometheus text format
 
-`DeviceService` owns application-level device operations: status generation, JSON generation, metrics generation, provisioning, hostname changes, and reboot scheduling.
-
-`DeviceIdentity` owns persistent identity data stored in NVS.
-
-`DeviceState` collects runtime state such as WiFi status, IP address, uptime, heap, and RSSI.
-
-`SensorManager` owns sensor probing and periodic sensor updates.
-
-`Bme280Sensor` owns the direct BME280 interaction.
-
-`MetricsFormatter` converts current state and sensor fields into Prometheus text format.
-
-This separation keeps HTTP code from knowing too much about identity, sensors, or metrics internals.
+This keeps HTTP code from knowing too much about identity, sensor internals, or metrics formatting.
 
 ## Troubleshooting
 
@@ -764,11 +770,11 @@ This separation keeps HTTP code from knowing too much about identity, sensors, o
 
 Check that:
 
-- The ESP32 is connected to the same network as your computer.
-- The firmware is running and the HTTP server started.
-- The subnet is correct.
-- Port `80` is reachable.
-- The device responds to `/api/device/info`:
+- the ESP32 is connected to the same network as your computer
+- the firmware is running and the HTTP server started
+- the subnet is correct
+- port `80` is reachable
+- the device responds to `/api/device/info`
 
 ```bash
 curl http://192.168.1.233/api/device/info | jq
@@ -798,22 +804,13 @@ python3 tools/provision/assign_id.py \
 
 ### Device is already provisioned
 
-A provisioned ID cannot be changed through the provisioning endpoint. This is intentional to avoid accidentally renaming physical devices.
-
-For hostname updates, keep the same `--id` and use `--force`:
-
-```bash
-python3 tools/provision/assign_id.py \
-  --subnet 192.168.1.0/24 \
-  --id esp32-001 \
-  --hostname livingroom-sensor \
-  --ip 192.168.1.233 \
-  --force
-```
+A provisioned ID cannot be changed through the provisioning endpoint.
+For hostname updates, keep the same `--id` and use `--force`.
 
 ### Hostname changed but `.local` still uses the old name
 
-Reboot the device. The value is stored immediately, but WiFi hostname and mDNS are applied during connection startup.
+Reboot the device.
+The value is stored immediately, but Wi-Fi hostname and mDNS are applied during connection startup.
 
 ```bash
 curl -X POST http://192.168.1.233/api/device/reboot \
@@ -821,23 +818,34 @@ curl -X POST http://192.168.1.233/api/device/reboot \
   -d '{}' | jq
 ```
 
+### Sensor is enabled but no data appears
+
+Check these points:
+
+- the sensor is actually enabled in `src/config.h`
+- the I2C address matches the module, for example `0x76` or `0x77` for BME280 and `0x23` for BH1750 on the current branch
+- wiring and power are correct
+- the serial log shows successful probe messages
+- enough time has passed for the next automatic re-probe if the sensor was absent at boot
+
 ## Current limitations
 
-- No authentication is implemented. Keep the device on a trusted LAN or isolated IoT network.
-- Hostname changes require reboot before WiFi hostname and mDNS fully update.
-- BME280 dynamic re-probing is prepared in the configuration, but the current update loop does not actively re-probe after boot.
-- There is no OTA update support yet.
+- no authentication is implemented, so keep the device on a trusted LAN or isolated IoT network
+- hostname changes require reboot before Wi-Fi hostname and mDNS fully update
+- calibration updates require a valid current reading for the target field
+- there is no OTA update support yet
+- sensor registration is still static in code rather than fully data-driven
 
 ## Possible next steps
 
-- Add automatic BME280 re-probing if the sensor is connected after boot.
-- Add OTA firmware updates.
-- Add a small OLED display for local status.
-- Add motion-triggered display wake-up.
-- Add MQTT support for low-power or event-driven publishing.
-- Add deep sleep mode for battery-powered deployments.
-- Add basic API authentication if the device is reachable from less trusted networks.
-- Add GitHub Actions or local CI for formatting and build checks.
+- add OTA firmware updates
+- add API authentication for less trusted networks
+- add a small OLED display for local status
+- add ADC-backed supply-voltage reporting as a surfaced sensor module
+- make sensor registration more dynamic
+- add GitHub Actions CI for build and checks
+- add deep sleep mode for battery-powered deployments
+- add MQTT support for event-driven or low-power use cases
 
 ## License
 
