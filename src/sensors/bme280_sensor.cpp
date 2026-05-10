@@ -9,6 +9,13 @@ bool Bme280Sensor::begin(uint8_t i2cAddress) {
   lastReadOk_ = false;
 
   if (available_) {
+    driver_.setSampling(
+        Adafruit_BME280::MODE_FORCED,
+        Adafruit_BME280::SAMPLING_X1,   // temperature
+        Adafruit_BME280::SAMPLING_X1,   // pressure
+        Adafruit_BME280::SAMPLING_X1,   // humidity
+        Adafruit_BME280::FILTER_OFF
+    );
     Serial.print("[bme280] initialized at 0x");
     Serial.println(i2cAddress, HEX);
   } else {
@@ -24,6 +31,8 @@ bool Bme280Sensor::read() {
     lastReadOk_ = false;
     return false;
   }
+  
+  driver_.takeForcedMeasurement(); 
 
   temperatureRawC_ = driver_.readTemperature();
   pressureRawHpa_ = driver_.readPressure() / 100.0f;
