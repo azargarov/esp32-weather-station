@@ -10,9 +10,10 @@ The node is designed to behave like a small, self-contained observability export
 
 - ESP32 WiFi connection with reconnect handling.
 - Optional BME280 support for temperature, humidity, and pressure.
-- HTTP API for health checks, JSON status, device information, provisioning, hostname updates, and reboot requests.
+- HTTP API for health checks, JSON status, device information, provisioning, hostname updates, reboot requests, and sensor calibration.
 - Prometheus `/metrics` endpoint.
 - Persistent device identity stored in ESP32 NVS using `Preferences`.
+- Persistent sensor calibration profiles stored in ESP32 NVS and restored after reboot.
 - mDNS support, for example `http://livingroom-sensor.local`.
 - Helper provisioning script for scanning devices and assigning stable IDs and hostnames.
 - Modular C++ structure: WiFi, HTTP, device service, identity, state, sensors, and metrics formatting are separated.
@@ -78,7 +79,7 @@ constexpr uint32_t LOOP_DELAY_MS = 100;
 
 constexpr bool BME280_ENABLED = true;
 constexpr uint8_t BME280_I2C_ADDRESS = 0x76; // or 0x77
-constexpr uint32_t SENSOR_READ_INTERVAL_MS = 5000;
+constexpr uint32_t SENSOR_READ_INTERVAL_MS = 1000;
 ```
 
 WiFi credentials are expected in `secrets.h`, which should not be committed to Git.
@@ -93,6 +94,17 @@ constexpr const char *WIFI_SSID = "your-wifi-ssid";
 constexpr const char *WIFI_PASSWORD = "your-wifi-password";
 }
 ```
+## BME280 measurement mode
+
+The firmware uses the BME280 in forced mode. Each read triggers a fresh measurement on demand instead of leaving the sensor in continuous sampling mode.
+
+Current sampling setup:
+
+temperature: SAMPLING_X1
+pressure: SAMPLING_X8
+humidity: SAMPLING_X1
+filter: FILTER_X4
+
 
 ## Development workflow
 
@@ -417,23 +429,41 @@ Example response:
   "provisioned": true,
   "status": "ok",
   "ip": "192.168.1.233",
-  "uptime_sec": 83387,
-  "heap_free": 240760,
-  "wifi_rssi": -86,
+  "uptime_sec": 48779,
+  "heap_free": 229452,
+  "wifi_rssi": -54,
   "wifi_connected": true,
   "wifi_status": "connected",
   "sensors": {
     "bme280_available": true,
     "bme280_read_ok": true,
+    "bh1750_available": false,
+    "bh1750_read_ok": false,
     "fields": {
-      "temperature": 22.36,
-      "humidity": 33.00195,
-      "pressure": 1021.855
-    },
-    "units": {
-      "temperature": "celsius",
-      "humidity": "percent",
-      "pressure": "hpa"
+      "temperature_mean_60s": {
+        "value": 21.98511,
+        "unit": "celsius"
+      },
+      "temperature_median_60s": {
+        "value": 21.9868,
+        "unit": "celsius"
+      },
+      "humidity_mean_60s": {
+        "value": 22.60653,
+        "unit": "percent"
+      },
+      "humidity_median_60s": {
+        "value": 22.60612,
+        "unit": "percent"
+      },
+      "pressure_mean_60s": {
+        "value": 1010.716,
+        "unit": "hpa"
+      },
+      "pressure_median_60s": {
+        "value": 1010.72,
+        "unit": "hpa"
+      }
     }
   }
 }
@@ -517,31 +547,62 @@ Get current calibration:
 ```bash
 curl http://192.168.1.233/api/sensors/bme280/calibration | jq
 ```
+Each calibration request must include:
+- reference: the trusted reference value
+- point: calibration point index, either 1 or 2
+
 Calibrate using a reference measurement:
 
 ```bash
 curl -X POST http://<device IP>/api/sensors/bme280/temperature/calibration \
   -H "Content-Type: application/json" \
-  -d '{"reference": 22.7}'
+  -d '{"reference": 22.7, "point":1}'| jq
+```
+```bash
+curl -X POST http://<device IP>/api/sensors/bme280/temperature/calibration \
+  -H "Content-Type: application/json" \
+  -d '{"reference": 2.0, "point":2}' | jq
+```
+Calibration behavior:
+ - if only one point is stored, the device uses offset calibration
+ - if both point 1 and point 2 are stored, the device uses linear two-point calibration
+ - calibration profiles are stored in NVS and restored after reboot
+ - calibration data remains available even if the physical sensor is currently not detected
+ - 
+Single-point calibration behaves like this:
+```text 
+offset = reference - raw
+corrected = raw + offset
 ```
 
-#### Note
-The device calculates:
+Two-point calibration behaves like this:
 ```text
-  offset = reference - raw
-  corrected = raw + offset
+scale = (ref2 - ref1) / (raw2 - raw1)
+offset = ref1 - scale * raw1
+corrected = scale * raw + offset
 ```
+#### Note
 
 Sensor and field names are currently case-sensitive.
 
 Supported sensor names:
 - `bme280`
+- 
+```promql
+esp32_sensor_temperature_avg_60s{room="livingroom"}
+esp32_sensor_temperature_avg_60s{room="balcony"}
+esp32_sensor_humidity_avg_60s
+esp32_sensor_pressure_avg_60s
+esp32_wifi_rssi_dbm
+esp32_heap_free_bytes
+esp32_sensor_bme280_read_ok
+```
 
 Supported BME280 calibration fields:
 - `temperature`
 - `humidity`
 - `pressure`
-
+- `illuminance`
 
 ## Prometheus metrics
 
@@ -553,35 +614,76 @@ curl http://192.168.1.233/metrics
 
 The endpoint returns Prometheus text format.
 
-Current metrics include:
+### Core device metrics
 
-| Metric | Description |
-|---|---|
-| `esp32_up` | Firmware is running. |
-| `esp32_wifi_connected` | WiFi connection status. |
-| `esp32_uptime_seconds` | Time since boot. |
-| `esp32_heap_free_bytes` | Free heap memory. |
-| `esp32_wifi_rssi_dbm` | WiFi signal strength. |
-| `esp32_wifi_status_info` | WiFi status as a labeled info metric. |
-| `esp32_sensor_bme280_available` | Whether the BME280 sensor was detected. |
-| `esp32_sensor_bme280_read_ok` | Whether the last BME280 read succeeded. |
-| `esp32_sensor_temperature_avg_60s` | Temperature from the BME280 sensor. |
-| `esp32_sensor_humidity_avg_60s` | Humidity from the BME280 sensor. |
-| `esp32_sensor_pressure_avg_60s` | Pressure from the BME280 sensor. |
+ - esp32_up — firmware is running
+ - esp32_wifi_connected — WiFi connection status
+ - esp32_uptime_seconds — time since boot
+ - esp32_heap_free_bytes — free heap memory
+ - esp32_wifi_rssi_dbm — WiFi signal strength
+ - esp32_wifi_status_info — WiFi status as a labeled info metric
+ - esp32_metrics_build_duration_ms — time spent rebuilding cached metrics
+ - esp32_metrics_last_build_uptime_seconds — device uptime when cached metrics were last rebuilt
 
-Device identity labels are added directly by the firmware:
+All metrics include firmware-provided identity labels:
 
-```text
+``text
 device_id="esp32-001",hardware_id="esp32-000000000000"
 ```
 
-Sensor metrics also include a unit label:
+### Sensor state metrics
 
+Per-sensor availability, last read status, and read error counters are exposed as dedicated metrics:
+ - esp32_sensor_bme280_available
+ - esp32_sensor_bme280_read_ok
+ - esp32_sensor_bme280_read_errors_total
+ - esp32_sensor_bh1750_available
+ - esp32_sensor_bh1750_read_ok
+ - esp32_sensor_bh1750_read_errors_total
+
+### Rolling sensor statistics
+
+Measured values are exported through shared metric families with labels describing the sensor and field:
+ - esp32_sensor_mean_60s
+ - esp32_sensor_median_60s
+ - esp32_sensor_min_60s
+ - esp32_sensor_max_60s
+ - esp32_sensor_range_60s
+ - esp32_sensor_stddev_60s
+ - esp32_sensor_slope_per_minute_60s
+ - esp32_sensor_samples_60s
+
+Typical labels:
 ```text
-unit="celsius"
-unit="percent"
-unit="hpa"
+sensor="bme280",field="temperature",unit="celsius"
+sensor="bme280",field="humidity",unit="percent"
+sensor="bme280",field="pressure",unit="hpa"
+sensor="bh1750",field="illuminance",unit="lux"
 ```
+Example:
+```text
+esp32_sensor_mean_60s{device_id="esp32-001",hardware_id="esp32-000000000000",sensor="bme280",field="temperature",unit="celsius"} 21.98
+```
+
+## Calibration metrics
+
+Calibration state is exported per sensor field:
+ - esp32_sensor_calibration_enabled
+ - esp32_sensor_calibration_scale
+ - esp32_sensor_calibration_offset
+ - esp32_sensor_calibration_mode
+
+Calibration mode values:
+ - 0 - none
+ - 1 - offset
+ - 2 - two-point
+
+Example:
+```text
+esp32_sensor_calibration_scale{device_id="esp32-001",hardware_id="esp32-000000000000",sensor="bme280",field="temperature"} 1.02
+esp32_sensor_calibration_offset{device_id="esp32-001",hardware_id="esp32-000000000000",sensor="bme280",field="temperature",unit="celsius"} 0.26
+```
+
 ### Metrics caching
 
 To reduce response latency and heap pressure, the `/metrics` endpoint serves a cached response.
@@ -590,7 +692,7 @@ To reduce response latency and heap pressure, the `/metrics` endpoint serves a c
 - The update interval is configurable via:
 
 ```cpp
-constexpr uint32_t METRICS_CACHE_UPDATE_INTERVAL_MS = 5000;
+constexpr uint32_t METRICS_CACHE_UPDATE_INTERVAL_MS = 1000;
 ```
 
 ### Additional diagnostic metrics are exposed:
@@ -637,38 +739,6 @@ Example `/etc/prometheus/targets/esp32.yml`:
 
 The firmware-provided labels identify the physical ESP32. The Prometheus target labels are useful for logical placement, for example `room`, `floor`, `environment`, or `site`.
 
-## Grafana ideas
-
-Useful panels for this firmware:
-
-- Indoor and outdoor temperature over time.
-- Humidity over time.
-- Pressure trend.
-- WiFi RSSI by device.
-- Free heap memory by device.
-- Uptime by device.
-- BME280 availability and read status.
-- Temperature difference between indoor and outdoor sensors.
-
-Example PromQL queries:
-
-```promql
-esp32_sensor_temperature{room="livingroom"}
-esp32_sensor_temperature{room="balcony"}
-esp32_sensor_humidity
-esp32_sensor_pressure
-esp32_wifi_rssi_dbm
-esp32_heap_free_bytes
-esp32_bme280_read_ok
-```
-
-Temperature difference example:
-
-```promql
-esp32_sensor_temperature{room="livingroom"} - ignoring(room) esp32_sensor_temperature{room="balcony"}
-```
-
-Depending on your labels, you may need to adjust the matching expression.
 
 ## Design notes
 
