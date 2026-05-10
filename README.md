@@ -213,15 +213,6 @@ make flash PORT=/dev/ttyUSB1
 make monitor PORT=/dev/ttyUSB1
 ```
 
-### Note about serial ports
-
-`platformio.ini` on the current branch sets:
-
-- `upload_port = /dev/ttyUSB0`
-- `monitor_port = /dev/ttyUSB0`
-
-If your adapter uses another device path, edit `platformio.ini` or override the port in your command flow.
-
 ## First boot
 
 On boot, the firmware:
