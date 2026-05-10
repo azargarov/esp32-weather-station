@@ -56,16 +56,48 @@ bool CalibrationManager::setOffsetCalibration(CalibrationKey key, float raw,
     return false;
   }
 
-  CalibrationProfile profile;
-  profile.enabled = true;
-  profile.mode = CalibrationMode::OffsetOnly;
-  profile.scale = 1.0f;
-  profile.offset = reference - raw;
+  CalibrationProfile profile{};
   profile.hasP1 = true;
   profile.p1.raw = raw;
   profile.p1.reference = reference;
 
+  if (!recalculateProfile(profile)) {
+    return false;
+  }
+
   profiles_[indexFor(key)] = profile;
+  return saveProfile(key);
+}
+
+bool CalibrationManager::updateCalibrationPoint(CalibrationKey key,
+                                                uint8_t pointIndex, float raw,
+                                                float reference) {
+  if (!validKey(key) || !isfinite(raw) || !isfinite(reference)) {
+    return false;
+  }
+
+  if (pointIndex != 1 && pointIndex != 2) {
+    return false;
+  }
+
+  const uint8_t index = indexFor(key);
+  CalibrationProfile updated = profiles_[index];
+
+  if (pointIndex == 1) {
+    updated.hasP1 = true;
+    updated.p1.raw = raw;
+    updated.p1.reference = reference;
+  } else {
+    updated.hasP2 = true;
+    updated.p2.raw = raw;
+    updated.p2.reference = reference;
+  }
+
+  if (!recalculateProfile(updated)) {
+    return false;
+  }
+
+  profiles_[index] = updated;
   return saveProfile(key);
 }
 
@@ -77,16 +109,7 @@ bool CalibrationManager::setTwoPointCalibration(CalibrationKey key, float raw1,
     return false;
   }
 
-  const float dx = raw2 - raw1;
-  if (fabsf(dx) < kMinRawDistance) {
-    return false;
-  }
-
-  CalibrationProfile profile;
-  profile.enabled = true;
-  profile.mode = CalibrationMode::LinearTwoPoint;
-  profile.scale = (ref2 - ref1) / dx;
-  profile.offset = ref1 - profile.scale * raw1;
+  CalibrationProfile profile{};
   profile.hasP1 = true;
   profile.hasP2 = true;
   profile.p1.raw = raw1;
@@ -94,7 +117,7 @@ bool CalibrationManager::setTwoPointCalibration(CalibrationKey key, float raw1,
   profile.p2.raw = raw2;
   profile.p2.reference = ref2;
 
-  if (!isfinite(profile.scale) || !isfinite(profile.offset)) {
+  if (!recalculateProfile(profile)) {
     return false;
   }
 
@@ -181,6 +204,54 @@ bool CalibrationManager::writeSensorJson(SensorType sensor,
   return false;
 }
 
+bool CalibrationManager::recalculateProfile(CalibrationProfile &profile) const {
+  profile.enabled = false;
+  profile.mode = CalibrationMode::None;
+  profile.scale = 1.0f;
+  profile.offset = 0.0f;
+
+  const bool hasAnyPoint = profile.hasP1 || profile.hasP2;
+  if (!hasAnyPoint) {
+    return true;
+  }
+
+  if (profile.hasP1 && profile.hasP2) {
+    const float dx = profile.p2.raw - profile.p1.raw;
+    if (!isfinite(dx) || fabsf(dx) < kMinRawDistance) {
+      return false;
+    }
+
+    const float scale = (profile.p2.reference - profile.p1.reference) / dx;
+    const float offset = profile.p1.reference - scale * profile.p1.raw;
+
+    if (!isfinite(scale) || !isfinite(offset)) {
+      return false;
+    }
+
+    profile.enabled = true;
+    profile.mode = CalibrationMode::LinearTwoPoint;
+    profile.scale = scale;
+    profile.offset = offset;
+    return true;
+  }
+
+  const CalibrationPoint &point = profile.hasP1 ? profile.p1 : profile.p2;
+  if (!isfinite(point.raw) || !isfinite(point.reference)) {
+    return false;
+  }
+
+  const float offset = point.reference - point.raw;
+  if (!isfinite(offset)) {
+    return false;
+  }
+
+  profile.enabled = true;
+  profile.mode = CalibrationMode::OffsetOnly;
+  profile.scale = 1.0f;
+  profile.offset = offset;
+  return true;
+}
+
 uint8_t CalibrationManager::indexFor(CalibrationKey key) const {
   if (key.sensor == SensorType::Bme280) {
     switch (key.field) {
@@ -236,14 +307,17 @@ const char *CalibrationManager::storagePrefix(CalibrationKey key) const {
       return "xx";
     }
   }
+
   if (key.sensor == SensorType::Bh1750 &&
       key.field == SensorField::Illuminance) {
     return "li";
   }
+
   if (key.sensor == SensorType::Adc &&
       key.field == SensorField::SupplyVoltage) {
     return "sv";
   }
+
   return "xx";
 }
 

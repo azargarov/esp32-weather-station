@@ -3,9 +3,7 @@
 #include <Arduino.h>
 
 SensorManager::SensorManager()
-    : calibration_(),
-      bme280_(calibration_),
-      bh1750_(calibration_),
+    : calibration_(), bme280_(calibration_), bh1750_(calibration_),
       modules_{&bme280_, &bh1750_} {}
 
 void SensorManager::begin() {
@@ -61,8 +59,8 @@ const char *SensorManager::sensorFieldToString(SensorField field) const {
   return ::sensorFieldToString(field);
 }
 
-bool SensorManager::setCalibration(SensorType st, const char *field,
-                                   float reference) {
+bool SensorManager::setCalibrationPoint(SensorType st, const char *field,
+                                        uint8_t pointIndex, float reference) {
   const SensorField sensorField = parseSensorField(field);
 
   if (sensorField == SensorField::Unknown) {
@@ -71,7 +69,7 @@ bool SensorManager::setCalibration(SensorType st, const char *field,
 
   for (auto *module : modules_) {
     if (module->type() == st) {
-      return module->setCalibration(sensorField, reference);
+      return module->setCalibrationPoint(sensorField, pointIndex, reference);
     }
   }
 

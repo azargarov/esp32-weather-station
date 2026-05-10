@@ -2,7 +2,6 @@
 #include "aggregated_metric.h"
 #include "calibration_manager.h"
 
-
 #include <math.h>
 
 void appendStatMetric(SensorMetricVisitor visitor, void *context,
@@ -15,7 +14,6 @@ void appendStatMetric(SensorMetricVisitor visitor, void *context,
   visitor({family, sensor, field, value, unit, help, SensorMetricType::Gauge},
           context);
 }
-
 
 void walkFieldStats(SensorMetricVisitor visitor, void *context,
                     SensorType sensor, SensorField field,

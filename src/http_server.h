@@ -35,7 +35,7 @@ private:
   void handleDynamicCalibrationRoute();
 
   void handleGetCalibration(SensorType);
-  void processSetCalibration(SensorType st, const char *field);
+  void processSetCalibrationPoint(SensorType st, const char *field);
   bool extractCalibrationPath(const String &uri, String &sensor, String &field);
   bool extractSensorCalibrationPath(const String &uri, String &sensor);
 };

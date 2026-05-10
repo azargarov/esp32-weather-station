@@ -112,14 +112,14 @@ void HttpServer::handleDynamicCalibrationRoute() {
     }
 
     SensorType st = sensorManager_.parseSensorType(sensor.c_str());
-    processSetCalibration(st, field.c_str());
+    processSetCalibrationPoint(st, field.c_str());
     return;
   }
 
   sendJsonError(server_, 405, "method_not_allowed");
 }
 
-void HttpServer::processSetCalibration(SensorType st, const char *field) {
+void HttpServer::processSetCalibrationPoint(SensorType st, const char *field) {
   JsonDocument doc;
 
   ParseBodyResult result = parseRequestBody(server_, doc);
@@ -129,20 +129,30 @@ void HttpServer::processSetCalibration(SensorType st, const char *field) {
     return;
   }
 
-  if (!doc["reference"].is<float>()) {
-    sendJsonError(server_, 400, "missing_reference");
+  if (!doc["reference"].is<float>() && !doc["reference"].is<int>()) {
+    sendJsonError(server_, 400, "invalid_reference");
     return;
   }
 
-  float reference = doc["reference"].as<float>();
+  if (!doc["point"].is<int>()) {
+    sendJsonError(server_, 400, "invalid_point");
+    return;
+  }
 
-  if (!sensorManager_.setCalibration(st, field, reference)) {
+  const float reference = doc["reference"].as<float>();
+  const int point = doc["point"].as<int>();
+
+  if (point != 1 && point != 2) {
+    sendJsonError(server_, 400, "invalid_point");
+    return;
+  }
+
+  if (!sensorManager_.setCalibrationPoint(st, field, point, reference)) {
     sendJsonError(server_, 400, "bad_request");
     return;
   }
 
   JsonDocument response;
-
   if (!sensorManager_.getCalibration(st, response)) {
     sendJsonError(server_, 500, "failed_to_read_calibration");
     return;

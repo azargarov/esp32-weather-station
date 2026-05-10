@@ -98,7 +98,8 @@ float Bh1750Module::latestRawValue(SensorField field) const {
   }
 }
 
-bool Bh1750Module::setCalibration(SensorField field, float reference) {
+bool Bh1750Module::setCalibrationPoint(SensorField field, uint8_t pointIndex,
+                                       float reference) {
   if (field != SensorField::Illuminance) {
     return false;
   }
@@ -109,8 +110,8 @@ bool Bh1750Module::setCalibration(SensorField field, float reference) {
     return false;
   }
 
-  return calibration_.setOffsetCalibration({SensorType::Bh1750, field}, raw,
-                                           reference);
+  return calibration_.updateCalibrationPoint({SensorType::Bh1750, field},
+                                             pointIndex, raw, reference);
 }
 
 bool Bh1750Module::getCalibration(JsonDocument &doc) const {
@@ -147,8 +148,8 @@ void Bh1750Module::walkMetrics(SensorMetricVisitor visitor,
            SensorMetricType::Counter},
           context);
 
-  walkFieldStats(visitor, context, SensorType::Bh1750,
-                 SensorField::Illuminance, metrics_.illuminance);
+  walkFieldStats(visitor, context, SensorType::Bh1750, SensorField::Illuminance,
+                 metrics_.illuminance);
 
   walkCalibrationMetric(
       visitor, context, SensorType::Bh1750, SensorField::Illuminance, "lux",

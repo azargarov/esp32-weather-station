@@ -1,7 +1,7 @@
 #pragma once
 
-#include "sensor_data.h"
 #include "aggregated_metric.h"
+#include "sensor_data.h"
 #include "sensor_module.h"
 #include <Arduino.h>
 #include <BH1750.h>
@@ -17,9 +17,7 @@ struct Bh1750Reading {
 struct Bh1750Metrics {
   MetricStats illuminance;
 
-  bool hasValue() const {
-    return illuminance.hasValue();
-  }
+  bool hasValue() const { return illuminance.hasValue(); }
 };
 
 class Bh1750Sensor {

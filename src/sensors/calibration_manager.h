@@ -44,8 +44,13 @@ public:
   float apply(CalibrationKey key, float raw) const;
 
   bool setOffsetCalibration(CalibrationKey key, float raw, float reference);
+
+  bool updateCalibrationPoint(CalibrationKey key, uint8_t pointIndex, float raw,
+                              float reference);
+
   bool setTwoPointCalibration(CalibrationKey key, float raw1, float ref1,
                               float raw2, float ref2);
+
   bool clearCalibration(CalibrationKey key);
 
   bool hasCalibration(CalibrationKey key) const;
@@ -60,6 +65,8 @@ private:
 
   uint8_t indexFor(CalibrationKey key) const;
   bool validKey(CalibrationKey key) const;
+
+  bool recalculateProfile(CalibrationProfile &profile) const;
 
   bool loadProfile(CalibrationKey key);
   bool saveProfile(CalibrationKey key) const;

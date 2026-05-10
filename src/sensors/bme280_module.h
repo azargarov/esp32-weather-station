@@ -17,7 +17,8 @@ public:
   void walkMetrics(SensorMetricVisitor visitor, void *context) const override;
   void walkFields(SerializableSensor::FieldVisitor visitor) const override;
 
-  bool setCalibration(SensorField field, float reference) override;
+  bool setCalibrationPoint(SensorField field, uint8_t pointIndex,
+                           float reference) override;
   bool getCalibration(JsonDocument &doc) const override;
 
   bool available() const;
