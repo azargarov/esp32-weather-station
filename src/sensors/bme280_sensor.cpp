@@ -12,9 +12,9 @@ bool Bme280Sensor::begin(uint8_t i2cAddress) {
     driver_.setSampling(
         Adafruit_BME280::MODE_FORCED,
         Adafruit_BME280::SAMPLING_X1,   // temperature
-        Adafruit_BME280::SAMPLING_X1,   // pressure
+        Adafruit_BME280::SAMPLING_X8,   // pressure
         Adafruit_BME280::SAMPLING_X1,   // humidity
-        Adafruit_BME280::FILTER_OFF
+        Adafruit_BME280::FILTER_X4
     );
     Serial.print("[bme280] initialized at 0x");
     Serial.println(i2cAddress, HEX);
@@ -28,22 +28,37 @@ bool Bme280Sensor::begin(uint8_t i2cAddress) {
 
 bool Bme280Sensor::read() {
   if (!available_) {
+    setNaN();
     lastReadOk_ = false;
     return false;
   }
-  
-  driver_.takeForcedMeasurement(); 
 
-  temperatureRawC_ = driver_.readTemperature();
-  pressureRawHpa_ = driver_.readPressure() / 100.0f;
-  humidityRawPercent_ = driver_.readHumidity();
+  if (!driver_.takeForcedMeasurement()) {
+    setNaN();
+    lastReadOk_ = false;
+    return false;
+  }
 
+  const float temperatureC = driver_.readTemperature();
+  const float pressureHpa = driver_.readPressure() / 100.0f;
+  const float humidityPercent = driver_.readHumidity();
+
+  const bool ok = isfinite(temperatureC) &&
+                  isfinite(pressureHpa) &&
+                  isfinite(humidityPercent);
+
+  if (!ok) {
+    setNaN();
+    lastReadOk_ = false;
+    return false;
+  }
+
+  temperatureRawC_ = temperatureC;
+  pressureRawHpa_ = pressureHpa;
+  humidityRawPercent_ = humidityPercent;
   lastReadMs_ = millis();
-
-  lastReadOk_ = isfinite(temperatureRawC_) && isfinite(pressureRawHpa_) &&
-                isfinite(humidityRawPercent_);
-
-  return lastReadOk_;
+  lastReadOk_ = true;
+  return true;
 }
 
 bool Bme280Sensor::available() const { return available_; }
@@ -73,4 +88,10 @@ SensorSample Bme280Sensor::humiditySample() const {
 SensorSample Bme280Sensor::pressureSample() const {
   return {SensorType::Bme280, SensorField::Pressure, lastReadOk_,
           pressureRawHpa_, lastReadMs_};
+}
+
+void Bme280Sensor::setNaN(){
+    temperatureRawC_ = NAN;
+    pressureRawHpa_ = NAN;
+    humidityRawPercent_ = NAN;
 }

@@ -40,6 +40,7 @@ public:
   SensorSample pressureSample() const;
 
 private:
+  void setNaN();
   Adafruit_BME280 driver_;
 
   bool available_ = false;
