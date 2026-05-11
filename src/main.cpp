@@ -10,6 +10,8 @@ namespace {
 WiFiManager wifiManager;
 SensorManager sensorManager;
 HttpServer *httpServer = nullptr;
+
+const int LED_PIN = 2;
 } // namespace
 
 void setup() {
@@ -56,16 +58,20 @@ void setup() {
   Serial.println(DeviceIdentity::getEffectiveId());
   Serial.println(F("End of booting"));
   Serial.println(F("========================="));
+
+  pinMode(LED_PIN, OUTPUT);
 }
 
 void loop() {
+  
+  const uint32_t now = millis();
+  static uint32_t lastMetricsCacheUpdateMs = 0;
+
+  digitalWrite(LED_PIN, wifiManager.isConnected() ? HIGH : LOW);
+
   wifiManager.ensureConnected();
   wifiManager.handleSerialInput();
-
   sensorManager.update();
-
-  static uint32_t lastMetricsCacheUpdateMs = 0;
-  const uint32_t now = millis();
 
   if (now - lastMetricsCacheUpdateMs >=
       Config::METRICS_CACHE_UPDATE_INTERVAL_MS) {
