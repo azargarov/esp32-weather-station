@@ -28,6 +28,9 @@ public:
   void getJSONStatus(JsonDocument &doc);
   void getDeviceInfo(JsonDocument &doc);
 
+  DeviceService::Result updatePlacement(const String &placement);
+  DeviceService::Result updateReference(bool ref);
+
   Result provisionDevice(const String &newId, const String &newHostname,
                          JsonDocument &response);
   Result setHostname(const String &newHostname, JsonDocument &response);

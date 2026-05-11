@@ -204,6 +204,8 @@ void DeviceService::getDeviceInfo(JsonDocument &doc) {
   doc["ip"] = state.wifiConnected ? state.ip : "n/a";
   doc["reset_reason"] = resetReasonToString(bootInfo_.resetReason);
   doc["reset_reason_code"] = static_cast<int>(bootInfo_.resetReason);
+  doc["placement"] = DeviceIdentity::getPlacement();
+  doc["reference"] = DeviceIdentity::getReference();
 }
 
 DeviceService::Result DeviceService::provisionDevice(const String &newId,
@@ -257,6 +259,24 @@ DeviceService::Result DeviceService::setHostname(const String &newHostname,
 
   fillHostnameResponse(response);
   return ok(200);
+}
+
+DeviceService::Result DeviceService::updatePlacement(const String &placement){
+    if (!DeviceIdentity::isValidPlacement(placement)) {
+      return {false, 400, "invalid_placement"};
+    }
+
+    if (!DeviceIdentity::setPlacement(placement)) {
+      return {false, 500, "failed_to_store_placement"};
+    }
+    return {true, 200, nullptr};
+}
+
+DeviceService::Result DeviceService::updateReference(bool ref){
+    if (!DeviceIdentity::setReference(ref)) {
+      return {false, 500, "failed_to_store_reference"};
+    }
+    return {true, 200, nullptr};
 }
 
 DeviceService::Result DeviceService::requestReboot(JsonDocument &response) {

@@ -57,14 +57,16 @@ HttpServer::HttpServer(DeviceService &deviceService,
       deviceService_(deviceService) {}
 
 void HttpServer::registerRoutes() {
-  server_.on("/", [this]() { handleRoot(); });
-  server_.on("/healthz", [this]() { handleHealthz(); });
-  server_.on("/json", [this]() { handleJson(); });
-  server_.on("/metrics", [this]() { handleMetrics(); });
+  server_.on("/", HTTP_GET,  [this]() { handleRoot(); });
+  server_.on("/healthz", HTTP_GET, [this]() { handleHealthz(); });
+  server_.on("/json", HTTP_GET,  [this]() { handleJson(); });
+  server_.on("/metrics", HTTP_GET,  [this]() { handleMetrics(); });
 
   server_.on("/ping", HTTP_GET, [this]() { handlePing(); });
-
-  server_.on("/api/device/info", [this]() { handleDeviceInfo(); });
+  server_.on("/api/device/info", HTTP_GET,  [this]() { handleDeviceInfo(); });
+  
+  server_.on("/api/device/tags", HTTP_POST,
+            [this]() { handleSetDeviceTags(); });
   server_.on("/api/device/provision", HTTP_POST,
              [this]() { handleProvision(); });
   server_.on("/api/device/hostname", HTTP_POST,
@@ -182,6 +184,57 @@ void HttpServer::handleDeviceInfo() {
   JsonDocument doc;
   deviceService_.getDeviceInfo(doc);
   sendJson(server_, 200, doc);
+}
+
+void HttpServer::handleSetDeviceTags() {
+  JsonDocument request;
+
+  ParseBodyResult res = parseRequestBody(server_, request);
+  const char *error = parseBodyResultToError(res);
+  if (error) {
+    sendJsonError(server_, 400, error);
+    return;
+  }
+
+  const bool hasPlacement = !request["placement"].isNull();
+  const bool hasReference = !request["reference"].isNull();
+
+  if (!hasPlacement && !hasReference) {
+    sendJsonError(server_, 400, "missing_placement_and_reference");
+    return;
+  }
+
+  if (hasPlacement) {
+    if (!request["placement"].is<const char *>()) {
+      sendJsonError(server_, 400, "invalid_placement");
+      return;
+    }
+
+    const char *placementRaw = request["placement"];
+    const String placement = placementRaw ? String(placementRaw) : "";
+
+    DeviceService::Result result = deviceService_.updatePlacement(placement);
+    if (!result.ok) {
+      sendJsonError(server_, result.statusCode, result.error);
+      return;
+    }
+  }
+
+  if (hasReference) {
+    if (!request["reference"].is<bool>()) {
+      sendJsonError(server_, 400, "invalid_reference");
+      return;
+    }
+
+    DeviceService::Result result =
+        deviceService_.updateReference(request["reference"].as<bool>());
+    if (!result.ok) {
+      sendJsonError(server_, result.statusCode, result.error);
+      return;
+    }
+  }
+
+  handleDeviceInfo();
 }
 
 void HttpServer::handleProvision() {

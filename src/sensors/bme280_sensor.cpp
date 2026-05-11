@@ -9,13 +9,11 @@ bool Bme280Sensor::begin(uint8_t i2cAddress) {
   lastReadOk_ = false;
 
   if (available_) {
-    driver_.setSampling(
-        Adafruit_BME280::MODE_FORCED,
-        Adafruit_BME280::SAMPLING_X1,   // temperature
-        Adafruit_BME280::SAMPLING_X8,   // pressure
-        Adafruit_BME280::SAMPLING_X1,   // humidity
-        Adafruit_BME280::FILTER_X4
-    );
+    driver_.setSampling(Adafruit_BME280::MODE_FORCED,
+                        Adafruit_BME280::SAMPLING_X1, // temperature
+                        Adafruit_BME280::SAMPLING_X8, // pressure
+                        Adafruit_BME280::SAMPLING_X1, // humidity
+                        Adafruit_BME280::FILTER_X4);
     Serial.print("[bme280] initialized at 0x");
     Serial.println(i2cAddress, HEX);
   } else {
@@ -43,8 +41,7 @@ bool Bme280Sensor::read() {
   const float pressureHpa = driver_.readPressure() / 100.0f;
   const float humidityPercent = driver_.readHumidity();
 
-  const bool ok = isfinite(temperatureC) &&
-                  isfinite(pressureHpa) &&
+  const bool ok = isfinite(temperatureC) && isfinite(pressureHpa) &&
                   isfinite(humidityPercent);
 
   if (!ok) {
@@ -90,8 +87,8 @@ SensorSample Bme280Sensor::pressureSample() const {
           pressureRawHpa_, lastReadMs_};
 }
 
-void Bme280Sensor::setNaN(){
-    temperatureRawC_ = NAN;
-    pressureRawHpa_ = NAN;
-    humidityRawPercent_ = NAN;
+void Bme280Sensor::setNaN() {
+  temperatureRawC_ = NAN;
+  pressureRawHpa_ = NAN;
+  humidityRawPercent_ = NAN;
 }

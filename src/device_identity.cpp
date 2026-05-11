@@ -8,40 +8,40 @@ namespace DeviceIdentity {
 namespace {
 Preferences prefs;
 bool initialized = false;
+bool prefsReady = false;
 
 constexpr const char *kNamespace = "device";
 constexpr const char *kKeyDeviceId = "id";
 constexpr const char *kKeyHostname = "hostname";
+constexpr const char *kKeyPlacement = "placement";
+constexpr const char *kKeyReference = "reference";
 
 String cachedHardwareId;
 String cachedProvisionedId;
 String cachedHostname;
+String cachedPlacement="unknown";
+bool cachedReference=false;
 
 void ensureInitialized() {
   if (initialized) {
     return;
   }
 
-  prefs.begin(kNamespace, false);
-
   uint64_t chipid = ESP.getEfuseMac();
 
   char buf[24];
   snprintf(buf, sizeof(buf), "esp32-%04X%08X",
-           static_cast<uint16_t>(chipid >> 32), static_cast<uint32_t>(chipid));
+           static_cast<uint16_t>(chipid >> 32),
+           static_cast<uint32_t>(chipid));
 
   cachedHardwareId = String(buf);
 
-  if (prefs.isKey(kKeyDeviceId)) {
+  prefsReady = prefs.begin(kNamespace, false);
+  if (prefsReady) {
     cachedProvisionedId = prefs.getString(kKeyDeviceId, "");
-  } else {
-    cachedProvisionedId = "";
-  }
-
-  if (prefs.isKey(kKeyHostname)) {
     cachedHostname = prefs.getString(kKeyHostname, "");
-  } else {
-    cachedHostname = "";
+    cachedPlacement = prefs.getString(kKeyPlacement, "unknown");
+    cachedReference = prefs.getBool(kKeyReference, false);
   }
 
   initialized = true;
@@ -76,7 +76,24 @@ String getHostname() {
 
 String getEffectiveHostname() {
   ensureInitialized();
-  return cachedHostname.isEmpty() ? getEffectiveId() : cachedHostname;
+  return cachedHostname.isEmpty() ? 
+       (cachedProvisionedId.isEmpty() ? cachedHardwareId : cachedProvisionedId)
+       : cachedHostname;
+}
+
+String getPlacement(){
+  ensureInitialized();
+  return cachedPlacement;
+}
+
+bool getReference(){
+  ensureInitialized();
+  return cachedReference;
+}
+
+String getReferenceLabel() {
+  ensureInitialized();
+  return cachedReference ? "true" : "false";
 }
 
 bool hasProvisionedId() {
@@ -129,9 +146,19 @@ bool isValidHostname(const String &hostname) {
   return true;
 }
 
+bool isValidPlacement(const String &placement) {
+  return placement == "indoor" ||
+         placement == "outdoor" ||
+         placement == "unknown";
+}
+
 bool setProvisionedId(const String &id) {
   ensureInitialized();
 
+  if (!prefsReady) {
+    return false;
+  }
+  
   if (!isValidDeviceId(id)) {
     return false;
   }
@@ -147,6 +174,10 @@ bool setProvisionedId(const String &id) {
 bool setHostname(const String &hostname) {
   ensureInitialized();
 
+  if (!prefsReady) {
+    return false;
+  }
+
   if (!isValidHostname(hostname)) {
     return false;
   }
@@ -156,6 +187,39 @@ bool setHostname(const String &hostname) {
   }
 
   cachedHostname = hostname;
+  return true;
+}
+
+bool setPlacement(const String &placement){
+  ensureInitialized();
+  
+  if (!prefsReady) {
+    return false;
+  }
+
+  if (!isValidPlacement(placement)) {
+    return false;
+  }
+
+  if (prefs.putString(kKeyPlacement, placement) == 0) {
+    return false;
+  }
+  cachedPlacement = placement;
+  return true;
+}
+
+bool setReference(bool  ref){
+  ensureInitialized();
+
+  if (!prefsReady) {
+    return false;
+  }
+  
+  if (!prefs.putBool(kKeyReference, ref)) {
+    return false;
+  }
+
+  cachedReference = ref;
   return true;
 }
 
@@ -178,6 +242,28 @@ bool clearHostname() {
   }
 
   cachedHostname = "";
+  return true;
+}
+
+bool clearPlacement() {
+  ensureInitialized();
+
+  if (!prefs.remove(kKeyPlacement)) {
+    return false;
+  }
+
+  cachedPlacement = "unknown";
+  return true;
+}
+
+bool clearReference() {
+  ensureInitialized();
+
+  if (!prefs.remove(kKeyReference)) {
+    return false;
+  }
+
+  cachedReference = false;
   return true;
 }
 

@@ -29,6 +29,7 @@ private:
   void handleJson();
   void handleMetrics();
   void handleDeviceInfo();
+  void handleSetDeviceTags();
   void handleProvision();
   void handleSetHostname();
   void handleReboot();

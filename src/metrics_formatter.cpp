@@ -156,6 +156,10 @@ void buildBaseLabels(String &out) {
   appendEscapedLabelValue(out, DeviceIdentity::getEffectiveId());
   out += "\",hardware_id=\"";
   appendEscapedLabelValue(out, DeviceIdentity::getHardwareId());
+  out += "\",placement=\"";
+  appendEscapedLabelValue(out, DeviceIdentity::getPlacement());
+  out += "\",reference=\"";
+  appendEscapedLabelValue(out, DeviceIdentity::getReferenceLabel());
   out += "\"";
 }
 
